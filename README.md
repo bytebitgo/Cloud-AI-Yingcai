@@ -5,11 +5,15 @@
 ## 功能特点
 
 - 🔌 支持配置自定义API endpoint和key
+- 🤖 支持配置多个AI模型（如GPT-3.5、GPT-4等）
 - 💬 提供简洁的聊天界面
 - 🎨 使用VSCode主题样式，提供一致的视觉体验
 - 💾 自动保存配置到VSCode设置
 - ⌨️ 支持快捷键发送消息
 - 🔥 支持代码块和Markdown格式
+- 📋 支持代码块一键复制功能
+- ⚡ 支持流式响应，实时显示AI回复
+- ❗ 智能错误提示和处理
 
 ## 使用方法
 
@@ -17,6 +21,7 @@
 2. 在设置面板中配置：
    - API Endpoint: Cloudflare AI Gateway的API地址
    - API Key: 你的API密钥
+   - 可用模型: 添加或删除AI模型
 3. 配置完成后即可在聊天窗口与AI对话
 
 ## 命令
@@ -37,6 +42,16 @@
 
 - `cloudflare-ai-gateway.endpoint`: API endpoint地址
 - `cloudflare-ai-gateway.apiKey`: API密钥
+- `cloudflare-ai-gateway.models`: 可用的AI模型列表
+
+## 错误处理
+
+扩展提供了详细的错误提示：
+- API连接问题
+- 认证错误
+- 请求格式错误
+- 权限问题
+- 模型响应错误
 
 ## 安全说明
 
