@@ -1,36 +1,30 @@
 # Change Log
 
-## [0.1.1] - 2025-03-01
-
-### Added
-- 代码块增加复制按钮
-  - 鼠标悬停时显示复制按钮
-  - 点击复制后显示复制成功提示
-  - 支持所有代码块一键复制
-
-All notable changes to the "cloudflare-ai-gateway" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [0.1.0] - 2025-03-01
-
-### Added
-- 实现流式响应支持
-  - 添加实时消息更新
-  - 优化数据流处理逻辑
-  - 添加完整的错误处理
-
-### Changed
-- 优化聊天界面样式
-  - 用户消息使用浅蓝色背景
-  - 助手消息使用浅灰色背景
-  - 添加消息边框和过渡动画
-  - 改善整体视觉体验
+## [0.2.13] - 2025-03-02
 
 ### Fixed
-- 修复类型安全检查问题
-- 完善错误处理机制
+- 修复新建配置时模型列表不会继承已有配置的问题
 
-## [0.0.2]
+## [0.2.12] - 2025-03-02
 
-- Initial release with basic chat functionality
+### Fixed
+- 修复删除配置时的确认对话框问题，改用VSCode原生对话框API
+- 优化了设置面板的用户体验
+
+## [0.2.10] - 2025-03-02
+
+### Fixed
+- 修复设置面板无法显示已保存配置的问题
+
+## [0.2.9] - 2025-03-01
+
+### Added
+- 添加流式响应支持，实现打字机效果的消息显示
+
+### Fixed
+- 修复了一些类型错误
+- 优化了错误处理
+
+## [0.2.8] - 2025-02-28
+
+- Initial release

@@ -1,23 +1,107 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 
+interface Configuration {
+    name: string;
+    endpoint: string;
+    apiKey: string;
+    models: Array<{name: string; selected: boolean}>;
+}
+
 class SettingsManager {
     constructor(private readonly _context: vscode.ExtensionContext) {}
 
-    public getSettings(): { endpoint: string; apiKey: string; models: string[] } {
+    public getCurrentConfig(): string {
         const config = vscode.workspace.getConfiguration('cloudflare-ai-gateway');
+        return config.get('currentConfig') || '';
+    }
+
+    public getConfigurations(): { [key: string]: Configuration } {
+        const config = vscode.workspace.getConfiguration('cloudflare-ai-gateway');
+        return config.get('configurations') || {};
+    }
+
+    public getSettings(): Configuration {
+        const currentConfig = this.getCurrentConfig();
+        const configurations = this.getConfigurations();
+        
+        if (currentConfig && configurations[currentConfig]) {
+            return configurations[currentConfig];
+        }
+
+        // 如果没有当前配置，保持现有配置中的模型设置
+        const existingConfigs = this.getConfigurations();
+        const defaultModels = Object.values(existingConfigs)[0]?.models || [
+            { name: 'gpt-3.5-turbo', selected: true },
+            { name: 'gpt-4', selected: false }
+        ];
+        
         return {
-            endpoint: config.get('endpoint') || '',
-            apiKey: config.get('apiKey') || '',
-            models: config.get('models') || ['gpt-3.5-turbo', 'gpt-4']
+            name: '',
+            endpoint: '',
+            apiKey: '',
+            models: defaultModels
         };
     }
 
-    public saveSettings(settings: { endpoint: string; apiKey: string; models: string[] }) {
+    public async saveSettings(settings: Configuration) {
         const config = vscode.workspace.getConfiguration('cloudflare-ai-gateway');
-        config.update('endpoint', settings.endpoint, true);
-        config.update('apiKey', settings.apiKey, true);
-        config.update('models', settings.models, true);
+        const configurations = this.getConfigurations();
+        
+        configurations[settings.name] = settings;
+        
+        try {
+            await config.update('configurations', configurations, true);
+            await config.update('currentConfig', settings.name, true);
+            
+            // 验证保存是否成功
+            const savedConfigs = this.getConfigurations();
+            const savedConfig = savedConfigs[settings.name];
+            if (!savedConfig || JSON.stringify(savedConfig) !== JSON.stringify(settings)) {
+                throw new Error('设置保存验证失败');
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('保存设置失败:', error);
+            throw new Error('保存设置失败: ' + (error instanceof Error ? error.message : '未知错误'));
+        }
+    }
+
+    public async deleteConfig(name: string) {
+        const config = vscode.workspace.getConfiguration('cloudflare-ai-gateway');
+        const configurations = this.getConfigurations();
+        
+        // 创建一个新的配置对象，而不是直接修改现有对象
+        const newConfigurations = { ...configurations };
+        delete newConfigurations[name];
+        
+        try {
+            // 先更新当前配置（如果需要）
+            if (this.getCurrentConfig() === name) {
+                await config.update('currentConfig', '', true);
+            }
+            
+            // 然后更新配置列表
+            await config.update('configurations', newConfigurations, true);
+            
+            // 验证删除是否成功
+            const updatedConfigs = this.getConfigurations();
+            if (updatedConfigs[name]) {
+                throw new Error('配置删除验证失败');
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('删除配置失败:', error);
+            throw new Error('删除配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
+        }
+    }
+
+    public getSelectedModel(): string {
+        const settings = this.getSettings();
+        const selectedModel = settings.models.find(m => m.selected);
+        return selectedModel ? selectedModel.name : settings.models[0].name;
     }
 }
 
@@ -56,7 +140,10 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _handleMessage(text: string) {
-        if (!this._view) return;
+        if (!this._view) {
+            console.error('Webview is not initialized');
+            return;
+        }
 
         const userMessage = { role: 'user', content: text };
         this._messages.push(userMessage);
@@ -85,18 +172,18 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             // 记录请求信息
             console.log('发送请求到:', settings.endpoint);
             console.log('请求参数:', {
-                model: settings.models[0],
+                model: this._settingsManager.getSelectedModel(),
                 messages: this._messages,
                 temperature: 0.7,
                 max_tokens: 2048,
                 top_p: 1,
                 frequency_penalty: 0,
                 presence_penalty: 0,
-                stream: false
+                stream: true
             });
 
             const response = await axios.post(settings.endpoint, {
-                model: settings.models[0],
+                model: this._settingsManager.getSelectedModel(),
                 messages: this._messages,
                 temperature: 0.7,
                 max_tokens: 2048,
@@ -112,68 +199,67 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                 responseType: 'stream'
             });
 
+            let aiMessage = {
+                role: 'assistant',
+                content: ''
+            };
+            this._messages.push(aiMessage);
+
             // 移除加载状态消息
             this._view.webview.postMessage({
                 type: 'removeTemporary'
             });
 
-            // 创建新的助手消息
-            const aiMessage = { 
-                role: 'assistant', 
-                content: '' 
-            };
-            this._messages.push(aiMessage);
-
-            // 初始化流式消息
+            // 显示初始空消息
             this._view.webview.postMessage({
                 type: 'addMessage',
                 message: aiMessage,
                 temporary: false
             });
 
-            if (!response.data) {
-                throw new Error('响应数据为空');
-            }
-
             // 处理流式数据
             response.data.on('data', (chunk: Buffer) => {
                 if (!this._view) return;
                 
-                try {
-                    const lines = chunk.toString().split('\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            if (data === '[DONE]') continue;
-                            
-                            const json = JSON.parse(data);
-                            const delta = json.choices[0]?.delta?.content || '';
-                            if (delta) {
-                                aiMessage.content += delta;
-                                this._view.webview.postMessage({
-                                    type: 'updateMessage',
-                                    message: aiMessage
-                                });
-                            }
+                const lines = chunk.toString().split('\n');
+                for (const line of lines) {
+                    if (line.trim() === '') continue;
+                    if (line.trim() === 'data: [DONE]') continue;
+                    
+                    try {
+                        const data = JSON.parse(line.replace('data: ', ''));
+                        if (data.choices && data.choices[0]?.delta?.content) {
+                            aiMessage.content += data.choices[0].delta.content;
+                            this._view.webview.postMessage({
+                                type: 'updateMessage',
+                                message: aiMessage
+                            });
                         }
+                    } catch (error) {
+                        console.error('解析响应数据失败:', error);
                     }
-                } catch (error) {
-                    console.error('处理流式数据错误:', error);
                 }
             });
 
-            response.data.on('end', () => {
-                console.log('流式响应结束');
-                if (this._view) {
-                    this._view.webview.postMessage({
-                        type: 'addMessage',
-                        message: aiMessage,
-                        temporary: false
-                    });
+            return new Promise<void>((resolve, reject) => {
+                if (!this._view) {
+                    reject(new Error('Webview is not initialized'));
+                    return;
                 }
+
+                response.data.on('end', () => {
+                    resolve();
+                });
+                
+                response.data.on('error', (error: Error) => {
+                    this._handleError(error);
+                    reject(error);
+                });
             });
+
         } catch (error: any) {
             this._handleError(error);
+            throw error;
         }
     }
 
@@ -205,18 +291,19 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     private _showError(message: string) {
-        if (this._view) {
-            // 移除加载状态消息
-            this._view.webview.postMessage({
-                type: 'removeTemporary'
-            });
-            // 显示错误消息
-            this._view.webview.postMessage({
-                type: 'addMessage',
-                message: { role: 'error', content: message },
-                temporary: false
-            });
-        }
+        if (!this._view) return;
+
+        // 移除加载状态消息
+        this._view.webview.postMessage({
+            type: 'removeTemporary'
+        });
+        // 显示错误消息
+        this._view.webview.postMessage({
+            type: 'addMessage',
+            message: { role: 'error', content: message },
+            temporary: false
+        });
+        
         vscode.window.showErrorMessage(message);
     }
 
@@ -402,7 +489,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         messageDiv.className = \`message \${message.role}-message\${temporary ? ' temporary' : ''}\`;
                         
                         const content = message.content
-                            .replace(/\`\`\`(\\w*\\n)?([\\s\\S]*?)\\n?\`\`\`/g, '<pre><code>$2</code></pre>')
+                            .replace(/\`\`\`(\\w*\\n)?([\\s\\S]*?)\\n?\`\`\`/g, '<pre><code>$2</code><button class="copy-button" onclick="copyCode(this)">复制</button></pre>')
                             .replace(/\`([^\`]+)\`/g, '<code>$1</code>')
                             .replace(/\\n/g, '<br>');
                         
@@ -415,6 +502,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         const tempMessages = document.querySelectorAll('.message.temporary');
                         tempMessages.forEach(msg => msg.remove());
                     }
+                    
                     async function copyCode(button) {
                         const code = button.previousElementSibling.textContent;
                         try {
@@ -449,7 +537,7 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
         webviewView: vscode.WebviewView,
         _context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken,
-    ) {
+    ): void {
         this._view = webviewView;
 
         webviewView.webview.options = {
@@ -457,22 +545,49 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
             localResourceRoots: [this._extensionUri]
         };
 
-        webviewView.webview.html = this.getSettingsHtml(webviewView.webview);
+        webviewView.webview.html = this._getSettingsHtml(webviewView.webview);
 
         webviewView.webview.onDidReceiveMessage(
-            async (message) => {
+            async (message: any) => {
                 switch (message.command) {
                     case 'saveSettings':
-                        this._settingsManager.saveSettings(message.settings);
-                        vscode.window.showInformationMessage('设置已保存');
+                        try {
+                            await this._settingsManager.saveSettings(message.settings);
+                            if (this._view) {
+                                this._view.webview.html = this._getSettingsHtml(this._view.webview);
+                                vscode.window.showInformationMessage('设置已保存');
+                            }
+                        } catch (error) {
+                            vscode.window.showErrorMessage(error instanceof Error ? error.message : '保存设置失败');
+                        }
+                        break;
+                    case 'showDeleteConfirm':
+                        const answer = await vscode.window.showWarningMessage(
+                            `确定要删除配置 "${message.name}" 吗？`,
+                            { modal: true },
+                            '确定'
+                        );
+                        if (answer === '确定') {
+                            try {
+                                await this._settingsManager.deleteConfig(message.name);
+                                if (this._view) {
+                                    this._view.webview.html = this._getSettingsHtml(this._view.webview);
+                                    vscode.window.showInformationMessage('配置已删除');
+                                }
+                            } catch (error) {
+                                vscode.window.showErrorMessage(error instanceof Error ? error.message : '删除配置失败');
+                            }
+                        }
                         break;
                 }
             }
         );
     }
 
-    public getSettingsHtml(webview: vscode.Webview) {
+    private _getSettingsHtml(webview: vscode.Webview): string {
         const settings = this._settingsManager.getSettings();
+        const configurations = this._settingsManager.getConfigurations();
+        const currentConfig = this._settingsManager.getCurrentConfig();
         
         return `
             <!DOCTYPE html>
@@ -482,7 +597,7 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
                     body {
-                        padding: 15px;
+                        padding: 10px;
                         font-family: var(--vscode-font-family);
                         color: var(--vscode-editor-foreground);
                     }
@@ -493,13 +608,15 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                         display: block;
                         margin-bottom: 5px;
                     }
-                    input {
+                    input[type="text"],
+                    input[type="password"] {
                         width: 100%;
                         padding: 6px;
                         border: 1px solid var(--vscode-input-border);
                         border-radius: 4px;
                         background: var(--vscode-input-background);
                         color: var(--vscode-input-foreground);
+                        margin-bottom: 10px;
                     }
                     button {
                         padding: 6px 12px;
@@ -508,121 +625,115 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                         background: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
                         cursor: pointer;
+                        margin-right: 8px;
+                        margin-bottom: 8px;
                     }
                     button:hover {
                         background: var(--vscode-button-hoverBackground);
                     }
-                    .models-container {
+                    button.danger {
+                        background: var(--vscode-errorForeground);
+                    }
+                    .model-select {
+                        margin-bottom: 5px;
+                    }
+                    .card {
+                        padding: 10px;
+                        margin-bottom: 10px;
                         border: 1px solid var(--vscode-input-border);
                         border-radius: 4px;
-                        padding: 10px;
-                        margin-top: 5px;
                     }
-                    .models-list {
-                        margin-bottom: 10px;
-                        max-height: 150px;
-                        overflow-y: auto;
+                    .config-list {
+                        margin-bottom: 20px;
                     }
-                    .model-item {
+                    .config-item {
+                        padding: 8px;
+                        margin-bottom: 8px;
+                        border: 1px solid var(--vscode-input-border);
+                        border-radius: 4px;
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
-                        padding: 5px;
-                        margin: 2px 0;
-                        background: var(--vscode-input-background);
-                        border-radius: 3px;
                     }
-                    .add-model {
-                        display: flex;
-                        gap: 8px;
-                    }
-                    .add-model input {
-                        flex: 1;
-                    }
-                    .remove-btn {
-                        padding: 2px 6px;
-                        font-size: 12px;
-                        background: var(--vscode-errorForeground);
-                    }
-                    .add-btn {
-                        padding: 6px 12px;
+                    .config-item.selected {
+                        background: var(--vscode-editor-lineHighlightBackground);
                     }
                 </style>
             </head>
             <body>
-                <div class="form-group">
-                    <label>API Endpoint:</label>
-                    <input type="text" id="endpoint" value="${settings.endpoint}" placeholder="输入API endpoint">
-                </div>
-                <div class="form-group">
-                    <label>API Key:</label>
-                    <input type="password" id="apiKey" value="${settings.apiKey}" placeholder="输入API key">
-                </div>
-                <div class="form-group">
-                    <label>可用模型:</label>
-                    <div class="models-container">
-                        <div id="modelsList" class="models-list">
-                            ${settings.models.map(model => `
-                                <div class="model-item">
-                                    <span>${model}</span>
-                                    <button onclick="removeModel('${model}')" class="remove-btn">删除</button>
-                                </div>
-                            `).join('')}
+                <div class="config-list">
+                    <h3>已保存的配置</h3>
+                    ${Object.entries(configurations).map(([name, config]) => `
+                        <div class="config-item ${name === currentConfig ? 'selected' : ''}">
+                            <span>${name}</span>
+                            <button onclick="deleteConfig('${name}')" class="danger">删除</button>
                         </div>
-                        <div class="add-model">
-                            <input type="text" id="newModel" placeholder="输入模型名称">
-                            <button onclick="addModel()" class="add-btn">添加</button>
-                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="card">
+                    <div class="form-group">
+                        <label for="name">配置名称</label>
+                        <input type="text" id="name" value="${settings.name || ''}">
                     </div>
+                    <div class="form-group">
+                        <label for="endpoint">API 端点</label>
+                        <input type="text" id="endpoint" value="${settings.endpoint || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="apiKey">API 密钥</label>
+                        <input type="password" id="apiKey" value="${settings.apiKey || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>模型选择</label>
+                        ${(settings.models || []).map(model => `
+                            <div class="model-select">
+                                <input type="radio" 
+                                    name="model" 
+                                    value="${model.name}"
+                                    id="${model.name}"
+                                    ${model.selected ? 'checked' : ''}>
+                                <label for="${model.name}">${model.name}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button onclick="saveSettings()">保存设置</button>
                 </div>
-                <button onclick="saveSettings()">保存设置</button>
 
                 <script>
                     const vscode = acquireVsCodeApi();
-                    let models = ${JSON.stringify(settings.models)};
-
-                    function addModel() {
-                        const input = document.getElementById('newModel');
-                        const model = input.value.trim();
-                        if (!model) return;
-                        
-                        if (!models.includes(model)) {
-                            models.push(model);
-                            updateModelsList();
-                        }
-                        input.value = '';
-                    }
-
-                    function removeModel(model) {
-                        models = models.filter(m => m !== model);
-                        updateModelsList();
-                    }
-
-                    function updateModelsList() {
-                        const list = document.getElementById('modelsList');
-                        list.innerHTML = models.map(model => \`
-                            <div class="model-item">
-                                <span>\${model}</span>
-                                <button onclick="removeModel('\${model}')" class="remove-btn">删除</button>
-                            </div>
-                        \`).join('');
-                    }
 
                     function saveSettings() {
-                        const endpoint = document.getElementById('endpoint').value.trim();
-                        const apiKey = document.getElementById('apiKey').value.trim();
+                        const settings = {
+                            name: document.getElementById('name').value,
+                            endpoint: document.getElementById('endpoint').value,
+                            apiKey: document.getElementById('apiKey').value,
+                            models: Array.from(document.getElementsByName('model')).map(radio => ({
+                                name: radio.value,
+                                selected: radio.checked
+                            }))
+                        };
                         
+                        if (!settings.name) {
+                            vscode.postMessage({
+                                command: 'showError',
+                                text: '请填写配置名称'
+                            });
+                            return;
+                        }
+
                         vscode.postMessage({
                             command: 'saveSettings',
-                            settings: { endpoint, apiKey, models }
+                            settings: settings
                         });
                     }
 
-                    document.getElementById('newModel').addEventListener('keypress', (e) => {
-                        if (e.key === 'Enter') {
-                            addModel();
-                        }
-                    });
+                    function deleteConfig(name) {
+                        vscode.postMessage({
+                            command: 'showDeleteConfirm',
+                            name: name
+                        });
+                    }
                 </script>
             </body>
             </html>
@@ -630,8 +741,17 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
     }
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
     const settingsManager = new SettingsManager(context);
+    
+    // 确保配置项存在
+    const config = vscode.workspace.getConfiguration('cloudflare-ai-gateway');
+    if (!config.has('configurations')) {
+        await config.update('configurations', {}, true);
+    }
+    if (!config.has('currentConfig')) {
+        await config.update('currentConfig', '', true);
+    }
     
     const chatViewProvider = new ChatViewProvider(context.extensionUri, settingsManager);
     const settingsViewProvider = new SettingsViewProvider(context.extensionUri, settingsManager);

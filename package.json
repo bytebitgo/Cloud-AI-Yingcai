@@ -2,14 +2,19 @@
   "name": "cloudflare-ai-gateway",
   "displayName": "Cloudflare AI Gateway",
   "description": "VS Code extension for chatting with AI using Cloudflare AI Gateway",
-  "version": "0.1.1",
+  "version": "0.2.13",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:aiChatView",
+    "onView:aiSettingsView",
+    "onCommand:cloudflare-ai-gateway.startChat",
+    "onCommand:cloudflare-ai-gateway.openSettings"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -48,20 +53,25 @@
     "configuration": {
       "title": "Cloudflare AI Gateway",
       "properties": {
-        "cloudflare-ai-gateway.endpoint": {
+        "cloudflare-ai-gateway.configurations": {
+          "type": "object",
+          "default": {
+            "default": {
+              "name": "default",
+              "endpoint": "",
+              "apiKey": "",
+              "models": [
+                { "name": "gpt-3.5-turbo", "selected": true },
+                { "name": "gpt-4", "selected": false }
+              ]
+            }
+          },
+          "description": "保存的API配置"
+        },
+        "cloudflare-ai-gateway.currentConfig": {
           "type": "string",
           "default": "",
-          "description": "API endpoint URL"
-        },
-        "cloudflare-ai-gateway.apiKey": {
-          "type": "string",
-          "default": "",
-          "description": "API key for authentication"
-        },
-        "cloudflare-ai-gateway.models": {
-          "type": "array",
-          "default": ["gpt-3.5-turbo", "gpt-4"],
-          "description": "Available AI models"
+          "description": "当前使用的配置名称"
         }
       }
     }
