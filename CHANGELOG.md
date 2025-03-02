@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.2.38] - 2025-03-21
+
+### Fixed
+- 修复了GitHub Actions工作流中的弃用问题，将actions/upload-artifact和actions/download-artifact从v3更新到v4版本
+- 解决了"This request has been automatically failed because it uses a deprecated version of actions/upload-artifact: v3"错误
+
 ## [0.2.37] - 2025-03-20
 
 ### Added

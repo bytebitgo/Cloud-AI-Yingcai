@@ -32,7 +32,7 @@ jobs:
         run: npx vsce package
         
       - name: Upload VSIX as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cloud-ai-yingcai-${{ steps.package-version.outputs.current-version }}.vsix
           path: "*.vsix"
@@ -59,7 +59,7 @@ jobs:
         uses: martinbeentjes/npm-get-version-action@v1.3.1
         
       - name: Download VSIX artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: cloud-ai-yingcai-${{ steps.package-version.outputs.current-version }}.vsix
           

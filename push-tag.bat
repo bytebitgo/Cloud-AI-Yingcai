@@ -9,6 +9,22 @@ for /f "tokens=*" %%a in ('node -p "require('./package.json').version"') do (
 echo 当前版本号: v%VERSION%
 echo.
 
+REM 检查标签是否已存在
+git tag -l "v%VERSION%" > nul
+if %ERRORLEVEL% EQU 0 (
+    echo 警告: 标签 v%VERSION% 已存在!
+    set /p FORCE=是否强制重新创建并推送标签? (y/n): 
+    
+    if /i "!FORCE!"=="y" (
+        echo 正在删除现有标签...
+        git tag -d v%VERSION%
+        git push origin :refs/tags/v%VERSION%
+    ) else (
+        echo 操作已取消。
+        goto :end
+    )
+)
+
 set /p CONFIRM=是否推送标签 v%VERSION% 触发发布工作流? (y/n): 
 
 if /i "%CONFIRM%"=="y" (
@@ -26,4 +42,5 @@ if /i "%CONFIRM%"=="y" (
     echo 操作已取消。
 )
 
+:end
 pause 
