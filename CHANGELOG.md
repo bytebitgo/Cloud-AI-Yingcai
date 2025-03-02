@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.2.27] - 2025-03-10
+
+### Changed
+- 将项目名称从 "Cloudflare AI Gateway" 更改为 "Cloud-AI-Yingcai"
+- 更新了所有相关配置项和文档
+
 ## [0.2.26] - 2025-03-09
 
 ### Fixed

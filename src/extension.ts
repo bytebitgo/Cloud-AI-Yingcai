@@ -12,12 +12,12 @@ class SettingsManager {
     constructor(private readonly _context: vscode.ExtensionContext) {}
 
     public getCurrentConfig(): string {
-        const config = vscode.workspace.getConfiguration('cloudflare-ai-gateway');
+        const config = vscode.workspace.getConfiguration('cloud-ai-yingcai');
         return config.get('currentConfig') || '';
     }
 
     public getConfigurations(): { [key: string]: Configuration } {
-        const config = vscode.workspace.getConfiguration('cloudflare-ai-gateway');
+        const config = vscode.workspace.getConfiguration('cloud-ai-yingcai');
         return config.get('configurations') || {};
     }
 
@@ -45,7 +45,7 @@ class SettingsManager {
     }
 
     public async saveSettings(settings: Configuration) {
-        const config = vscode.workspace.getConfiguration('cloudflare-ai-gateway');
+        const config = vscode.workspace.getConfiguration('cloud-ai-yingcai');
         const configurations = this.getConfigurations();
         
         configurations[settings.name] = settings;
@@ -69,7 +69,7 @@ class SettingsManager {
     }
 
     public async deleteConfig(name: string) {
-        const config = vscode.workspace.getConfiguration('cloudflare-ai-gateway');
+        const config = vscode.workspace.getConfiguration('cloud-ai-yingcai');
         const configurations = this.getConfigurations();
         
         // 创建一个新的配置对象，而不是直接修改现有对象
@@ -161,7 +161,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
         // 添加配置变更监听器
         const configChangeListener = vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('cloudflare-ai-gateway.configurations')) {
+            if (e.affectsConfiguration('cloud-ai-yingcai.configurations')) {
                 console.log('检测到配置变更，刷新Webview');
                 if (this._view) {
                     this._view.webview.html = this._getHtmlForWebview(this._view.webview);
@@ -1274,7 +1274,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const settingsManager = new SettingsManager(context);
     
     // 确保配置项存在
-    const config = vscode.workspace.getConfiguration('cloudflare-ai-gateway');
+    const config = vscode.workspace.getConfiguration('cloud-ai-yingcai');
     if (!config.has('configurations')) {
         await config.update('configurations', {}, true);
     }
@@ -1289,11 +1289,11 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider('aiChatView', chatViewProvider),
         vscode.window.registerWebviewViewProvider('aiSettingsView', settingsViewProvider),
         
-        vscode.commands.registerCommand('cloudflare-ai-gateway.startChat', () => {
+        vscode.commands.registerCommand('cloud-ai-yingcai.startChat', () => {
             vscode.commands.executeCommand('workbench.view.ai-chat');
         }),
         
-        vscode.commands.registerCommand('cloudflare-ai-gateway.openSettings', () => {
+        vscode.commands.registerCommand('cloud-ai-yingcai.openSettings', () => {
             vscode.commands.executeCommand('workbench.view.ai-chat');
         })
     );

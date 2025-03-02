@@ -1,6 +1,6 @@
-# 🚀 Cloudflare AI Gateway VSCode 扩展
+# 🚀 Cloud-AI-Yingcai VSCode 扩展
 
-这是一个强大的VSCode扩展，允许你在编辑器中直接与AI进行交互。通过配置Cloudflare AI Gateway的endpoint和API key，你可以方便地使用AI聊天功能，提升开发效率。
+这是一个强大的VSCode扩展，允许你在编辑器中直接与AI进行交互。通过配置Cloud-AI-Yingcai的endpoint和API key，你可以方便地使用AI聊天功能，提升开发效率。
 
 ## ✨ 功能特色
 
@@ -35,7 +35,7 @@
 1. 点击VSCode侧边栏中的AI Chat图标(💭)打开聊天窗口
 2. 切换到设置面板进行配置：
    - **配置名称**：为当前配置设置一个名称
-   - **API Endpoint**：Cloudflare AI Gateway的API地址
+   - **API Endpoint**：Cloud-AI-Yingcai的API地址
    - **API Key**：你的API密钥
    - **可用模型**：添加或删除AI模型，选择当前要使用的模型
 3. 配置完成后点击保存，即可在聊天窗口与AI对话
@@ -78,8 +78,8 @@
 
 在VSCode设置中可以找到以下配置项：
 
-- `cloudflare-ai-gateway.configurations`: 保存的所有API配置
-- `cloudflare-ai-gateway.currentConfig`: 当前使用的配置名称
+- `cloud-ai-yingcai.configurations`: 保存的所有API配置
+- `cloud-ai-yingcai.currentConfig`: 当前使用的配置名称
 
 每个配置包含以下内容：
 - 配置名称
@@ -110,7 +110,7 @@ A: 请检查以下几点：
    - API Endpoint是否正确
    - API Key是否有效
    - 网络连接是否正常
-   - 所选模型是否在你的Cloudflare AI Gateway中可用
+   - 所选模型是否在你的Cloud-AI-Yingcai中可用
 
 ## 👨‍💻 开发
 

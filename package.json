@@ -1,8 +1,8 @@
 {
-  "name": "cloudflare-ai-gateway",
-  "displayName": "Cloudflare AI Gateway",
-  "description": "VS Code extension for chatting with AI using Cloudflare AI Gateway",
-  "version": "0.2.26",
+  "name": "cloud-ai-yingcai",
+  "displayName": "Cloud-AI-Yingcai",
+  "description": "VS Code extension for chatting with AI using Cloud-AI-Yingcai",
+  "version": "0.2.27",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -12,18 +12,18 @@
   "activationEvents": [
     "onView:aiChatView",
     "onView:aiSettingsView",
-    "onCommand:cloudflare-ai-gateway.startChat",
-    "onCommand:cloudflare-ai-gateway.openSettings"
+    "onCommand:cloud-ai-yingcai.startChat",
+    "onCommand:cloud-ai-yingcai.openSettings"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "cloudflare-ai-gateway.startChat",
+        "command": "cloud-ai-yingcai.startChat",
         "title": "打开AI聊天"
       },
       {
-        "command": "cloudflare-ai-gateway.openSettings",
+        "command": "cloud-ai-yingcai.openSettings",
         "title": "打开AI设置"
       }
     ],
@@ -51,9 +51,9 @@
       ]
     },
     "configuration": {
-      "title": "Cloudflare AI Gateway",
+      "title": "Cloud-AI-Yingcai",
       "properties": {
-        "cloudflare-ai-gateway.configurations": {
+        "cloud-ai-yingcai.configurations": {
           "type": "object",
           "default": {
             "default": {
@@ -68,7 +68,7 @@
           },
           "description": "保存的API配置"
         },
-        "cloudflare-ai-gateway.currentConfig": {
+        "cloud-ai-yingcai.currentConfig": {
           "type": "string",
           "default": "",
           "description": "当前使用的配置名称"
@@ -107,10 +107,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/username/cloudflare-ai-gateway.git"
+    "url": "https://github.com/username/cloud-ai-yingcai.git"
   },
   "bugs": {
-    "url": "https://github.com/username/cloudflare-ai-gateway/issues"
+    "url": "https://github.com/username/cloud-ai-yingcai/issues"
   },
-  "homepage": "https://github.com/username/cloudflare-ai-gateway#readme"
+  "homepage": "https://github.com/username/cloud-ai-yingcai#readme"
 }
