@@ -110,19 +110,31 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     private _messages: Array<{role: string, content: string}> = [];
     private _lastSelectedConfig: string = '';
     private _lastSelectedModel: string = '';
+    private _stateInitialized: boolean = false;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _settingsManager: SettingsManager
     ) {
+        this._initializeState();
+    }
+
+    private _initializeState() {
         // 初始化最后选择的配置为当前配置
         this._lastSelectedConfig = this._settingsManager.getCurrentConfig();
         
         // 初始化最后选择的模型为当前配置的第一个模型
         const settings = this._settingsManager.getSettings();
         if (settings.models && settings.models.length > 0) {
-            this._lastSelectedModel = settings.models[0].name;
+            const selectedModel = settings.models.find(m => m.selected);
+            this._lastSelectedModel = selectedModel ? selectedModel.name : settings.models[0].name;
         }
+        
+        this._stateInitialized = true;
+        console.log('状态初始化完成:', {
+            config: this._lastSelectedConfig,
+            model: this._lastSelectedModel
+        });
     }
 
     public resolveWebviewView(
@@ -137,7 +149,15 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             localResourceRoots: [this._extensionUri]
         };
 
+        // 确保状态已初始化
+        if (!this._stateInitialized) {
+            this._initializeState();
+        }
+
+        // 生成HTML并设置到webview
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        
+        console.log('Webview已创建，使用配置:', this._lastSelectedConfig, '模型:', this._lastSelectedModel);
 
         webviewView.webview.onDidReceiveMessage(
             async (message) => {
@@ -146,15 +166,27 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         // 保存用户选择的配置和模型
                         this._lastSelectedConfig = message.configName;
                         this._lastSelectedModel = message.modelName;
+                        console.log('发送消息，更新选择:', this._lastSelectedConfig, this._lastSelectedModel);
                         await this._handleMessage(message.text, message.configName, message.modelName);
                         break;
                     case 'configChanged':
                         // 当用户切换配置时，保存选择
                         this._lastSelectedConfig = message.configName;
+                        console.log('配置已更改:', this._lastSelectedConfig);
                         break;
                     case 'modelChanged':
                         // 当用户切换模型时，保存选择
                         this._lastSelectedModel = message.modelName;
+                        console.log('模型已更改:', this._lastSelectedModel);
+                        break;
+                    case 'webviewLoaded':
+                        // Webview加载完成后，确保UI状态与后端状态一致
+                        console.log('Webview加载完成，同步状态');
+                        webviewView.webview.postMessage({
+                            type: 'syncState',
+                            config: this._lastSelectedConfig,
+                            model: this._lastSelectedModel
+                        });
                         break;
                 }
             }
@@ -547,6 +579,53 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                     let currentConfigName = "${currentConfig}";
                     let currentModelName = "${selectedModel}";
                     
+                    // 页面加载完成后通知扩展
+                    document.addEventListener('DOMContentLoaded', () => {
+                        vscode.postMessage({
+                            command: 'webviewLoaded'
+                        });
+                    });
+                    
+                    // 监听来自扩展的消息
+                    window.addEventListener('message', event => {
+                        const message = event.data;
+                        
+                        if (message.type === 'addMessage') {
+                            appendMessage(message.message, message.temporary);
+                        } else if (message.type === 'removeTemporary') {
+                            removeTemporaryMessages();
+                        } else if (message.type === 'updateMessage') {
+                            updateMessage(message.message);
+                        } else if (message.type === 'syncState') {
+                            // 同步状态
+                            if (message.config && allConfigurations[message.config]) {
+                                currentConfigName = message.config;
+                                document.getElementById('configSelect').value = message.config;
+                                
+                                // 更新模型列表
+                                updateModelSelect(message.config);
+                                
+                                // 如果有指定模型，则选中该模型
+                                if (message.model) {
+                                    currentModelName = message.model;
+                                    const modelSelect = document.getElementById('modelSelect');
+                                    // 检查该模型是否在列表中
+                                    const modelExists = Array.from(modelSelect.options).some(option => option.value === message.model);
+                                    if (modelExists) {
+                                        modelSelect.value = message.model;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (message.type === 'addMessage' && message.message.role === 'assistant' && !message.temporary) {
+                            isProcessing = false;
+                            const sendButton = document.getElementById('sendButton');
+                            sendButton.disabled = false;
+                            sendButton.textContent = '发送';
+                        }
+                    });
+                    
                     function handleConfigChange(configName) {
                         currentConfigName = configName;
                         updateModelSelect(configName);
@@ -633,25 +712,6 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
                         input.value = '';
                     }
-
-                    window.addEventListener('message', event => {
-                        const message = event.data;
-                        
-                        if (message.type === 'addMessage') {
-                            appendMessage(message.message, message.temporary);
-                        } else if (message.type === 'removeTemporary') {
-                            removeTemporaryMessages();
-                        } else if (message.type === 'updateMessage') {
-                            updateMessage(message.message);
-                        }
-                        
-                        if (message.type === 'addMessage' && message.message.role === 'assistant' && !message.temporary) {
-                            isProcessing = false;
-                            const sendButton = document.getElementById('sendButton');
-                            sendButton.disabled = false;
-                            sendButton.textContent = '发送';
-                        }
-                    });
 
                     function updateMessage(message) {
                         const messagesDiv = document.getElementById('messages');
