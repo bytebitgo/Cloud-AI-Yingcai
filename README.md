@@ -40,7 +40,7 @@
    - **可用模型**：添加或删除AI模型，选择当前要使用的模型
 3. 配置完成后点击保存，即可在聊天窗口与AI对话
 
-![设置界面截图](images/jietu.png)
+![设置界面截图](https://raw.githubusercontent.com/bytebitgo/Cloud-AI-Yingcai/master/images/jietu.png)
 
 ### 多配置管理
 
