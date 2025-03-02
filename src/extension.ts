@@ -427,7 +427,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         vscode.window.showErrorMessage(message);
     }
 
-    private _getHtmlForWebview(webview: vscode.Webview) {
+    private _getHtmlForWebview(webview: vscode.Webview): string {
         const configurations = this._settingsManager.getConfigurations();
         const currentConfig = this._lastSelectedConfig || this._settingsManager.getCurrentConfig();
         
@@ -892,6 +892,10 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                             vscode.window.showErrorMessage(error instanceof Error ? error.message : '删除配置失败');
                         }
                         break;
+                    case 'showError':
+                        // 显示错误消息
+                        vscode.window.showErrorMessage(message.text);
+                        break;
                 }
             }
         );
@@ -1074,12 +1078,13 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                                         id="${model.name}"
                                         ${model.selected ? 'checked' : ''}>
                                     <label for="${model.name}">${model.name}</label>
+                                    <button class="icon danger" onclick="deleteModel('${model.name}')">删除</button>
                                 </div>
                             `).join('')}
                         </div>
-                        <div style="margin-top: 10px;">
-                            <input type="text" id="newModelName" placeholder="输入新模型名称">
-                            <button onclick="addNewModel()" style="margin-top: 5px;">添加新模型</button>
+                        <div style="margin-top: 10px; display: flex; gap: 8px;">
+                            <input type="text" id="newModelName" placeholder="输入新模型名称" style="flex: 1;">
+                            <button onclick="addNewModel()">添加模型</button>
                         </div>
                     </div>
                     <button onclick="saveSettings()">保存设置</button>
@@ -1143,6 +1148,14 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                             });
                             return;
                         }
+                        
+                        if (settings.models.length === 0) {
+                            vscode.postMessage({
+                                command: 'showError',
+                                text: '请至少添加一个模型'
+                            });
+                            return;
+                        }
 
                         vscode.postMessage({
                             command: 'saveSettings',
@@ -1181,6 +1194,38 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                             name: name
                         });
                     }
+                    
+                    function deleteModel(modelName) {
+                        if (!modelName) return;
+                        
+                        // 获取模型元素
+                        const modelInput = document.querySelector(\`.model-select input[value="\${modelName}"]\`);
+                        if (!modelInput) return;
+                        
+                        const modelElement = modelInput.parentElement;
+                        
+                        // 检查是否是最后一个模型
+                        const modelCount = document.getElementsByName('model').length;
+                        if (modelCount <= 1) {
+                            vscode.postMessage({
+                                command: 'showError',
+                                text: '至少需要保留一个模型'
+                            });
+                            return;
+                        }
+                        
+                        // 如果删除的是选中的模型，选中第一个可用模型
+                        const isSelected = modelInput.checked;
+                        if (isSelected) {
+                            const otherModels = document.querySelectorAll(\`.model-select input[name="model"]:not([value="\${modelName}"])\`);
+                            if (otherModels.length > 0) {
+                                otherModels[0].checked = true;
+                            }
+                        }
+                        
+                        // 删除模型元素
+                        modelElement.remove();
+                    }
 
                     function addNewModel() {
                         const newModelName = document.getElementById('newModelName').value.trim();
@@ -1191,6 +1236,18 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                             });
                             return;
                         }
+                        
+                        // 检查模型名称是否已存在
+                        const existingModels = Array.from(document.getElementsByName('model'));
+                        for (const model of existingModels) {
+                            if (model.value === newModelName) {
+                                vscode.postMessage({
+                                    command: 'showError',
+                                    text: '模型名称已存在'
+                                });
+                                return;
+                            }
+                        }
 
                         const modelsList = document.getElementById('modelsList');
                         const newModelHtml = \`
@@ -1200,6 +1257,7 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                                     value="\${newModelName}"
                                     id="\${newModelName}">
                                 <label for="\${newModelName}">\${newModelName}</label>
+                                <button class="icon danger" onclick="deleteModel('\${newModelName}')">删除</button>
                             </div>
                         \`;
                         modelsList.insertAdjacentHTML('beforeend', newModelHtml);
