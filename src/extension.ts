@@ -634,6 +634,10 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                     button.danger {
                         background: var(--vscode-errorForeground);
                     }
+                    button.icon {
+                        padding: 4px 8px;
+                        font-size: 12px;
+                    }
                     .model-select {
                         margin-bottom: 5px;
                         display: flex;
@@ -651,42 +655,85 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                     .config-list {
                         margin-bottom: 20px;
                     }
-                    .select-wrapper {
+                    .config-header {
                         display: flex;
-                        gap: 10px;
+                        justify-content: space-between;
                         align-items: center;
+                        margin-bottom: 10px;
                     }
-                    .config-select {
-                        flex: 1;
-                        padding: 6px;
+                    .config-dropdown {
+                        position: relative;
+                        width: 100%;
+                    }
+                    .dropdown-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 6px 10px;
                         border: 1px solid var(--vscode-input-border);
                         border-radius: 4px;
                         background: var(--vscode-input-background);
                         color: var(--vscode-input-foreground);
-                        min-width: 200px;
+                        cursor: pointer;
                     }
-                    .config-actions {
+                    .dropdown-content {
+                        display: none;
+                        position: absolute;
+                        width: 100%;
+                        max-height: 200px;
+                        overflow-y: auto;
+                        z-index: 1;
+                        border: 1px solid var(--vscode-input-border);
+                        border-radius: 4px;
+                        background: var(--vscode-input-background);
+                        margin-top: 2px;
+                    }
+                    .dropdown-content.show {
+                        display: block;
+                    }
+                    .dropdown-item {
                         display: flex;
-                        gap: 8px;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 8px 10px;
+                        cursor: pointer;
+                    }
+                    .dropdown-item:hover {
+                        background: var(--vscode-list-hoverBackground);
+                    }
+                    .dropdown-item-actions {
+                        display: flex;
+                        gap: 5px;
+                    }
+                    .dropdown-item-name {
+                        flex: 1;
                     }
                 </style>
             </head>
             <body>
                 <div class="config-list">
-                    <h3>已保存的配置</h3>
-                    <div class="select-wrapper">
-                        <select id="configSelect" onchange="handleConfigSelect(this.value)" class="config-select">
-                            <option value="">-- 选择配置 --</option>
-                            ${Object.entries(configurations).map(([name]) => `
-                                <option value="${name}" ${name === currentConfig ? 'selected' : ''}>${name}</option>
-                            `).join('')}
-                        </select>
-                        ${Object.keys(configurations).length > 0 ? `
-                            <div class="config-actions">
-                                <button onclick="editSelectedConfig()">编辑</button>
-                                <button onclick="deleteSelectedConfig()" class="danger">删除</button>
+                    <div class="config-header">
+                        <h3>已保存的配置</h3>
+                    </div>
+                    <div class="config-dropdown">
+                        <div class="dropdown-header" onclick="toggleDropdown()">
+                            <span id="selected-config">${currentConfig || '-- 选择配置 --'}</span>
+                            <span>▼</span>
+                        </div>
+                        <div id="dropdown-content" class="dropdown-content">
+                            <div class="dropdown-item" onclick="selectConfig('')">
+                                <div class="dropdown-item-name">-- 新建配置 --</div>
                             </div>
-                        ` : ''}
+                            ${Object.entries(configurations).map(([name]) => `
+                                <div class="dropdown-item" onclick="selectConfig('${name}')">
+                                    <div class="dropdown-item-name">${name}</div>
+                                    <div class="dropdown-item-actions">
+                                        <button class="icon" onclick="event.stopPropagation(); editConfig('${name}')">编辑</button>
+                                        <button class="icon danger" onclick="event.stopPropagation(); deleteConfig('${name}')">删除</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
                 </div>
                 
@@ -727,6 +774,43 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
 
                 <script>
                     const vscode = acquireVsCodeApi();
+                    
+                    function toggleDropdown() {
+                        document.getElementById('dropdown-content').classList.toggle('show');
+                    }
+                    
+                    // 点击下拉菜单外部时关闭下拉菜单
+                    window.onclick = function(event) {
+                        if (!event.target.matches('.dropdown-header') && !event.target.matches('.dropdown-header *')) {
+                            const dropdowns = document.getElementsByClassName('dropdown-content');
+                            for (let i = 0; i < dropdowns.length; i++) {
+                                const openDropdown = dropdowns[i];
+                                if (openDropdown.classList.contains('show')) {
+                                    openDropdown.classList.remove('show');
+                                }
+                            }
+                        }
+                    }
+                    
+                    function selectConfig(name) {
+                        document.getElementById('dropdown-content').classList.remove('show');
+                        document.getElementById('selected-config').textContent = name || '-- 选择配置 --';
+                        
+                        if (name) {
+                            editConfig(name);
+                        } else {
+                            // 清空表单
+                            document.getElementById('name').value = '';
+                            document.getElementById('endpoint').value = '';
+                            document.getElementById('apiKey').value = '';
+                            
+                            // 重置模型选择
+                            const modelInputs = document.getElementsByName('model');
+                            if (modelInputs.length > 0) {
+                                modelInputs[0].checked = true;
+                            }
+                        }
+                    }
 
                     function saveSettings() {
                         const settings = {
@@ -753,26 +837,7 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                         });
                     }
 
-                    function handleConfigSelect(name) {
-                        if (name) {
-                            editSelectedConfig();
-                        } else {
-                            // 清空表单
-                            document.getElementById('name').value = '';
-                            document.getElementById('endpoint').value = '';
-                            document.getElementById('apiKey').value = '';
-                            
-                            // 重置模型选择
-                            const modelInputs = document.getElementsByName('model');
-                            if (modelInputs.length > 0) {
-                                modelInputs[0].checked = true;
-                            }
-                        }
-                    }
-
-                    function editSelectedConfig() {
-                        const select = document.getElementById('configSelect');
-                        const name = select.value;
+                    function editConfig(name) {
                         if (!name) return;
 
                         const configs = ${JSON.stringify(configurations)};
@@ -795,9 +860,7 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                         }
                     }
 
-                    function deleteSelectedConfig() {
-                        const select = document.getElementById('configSelect');
-                        const name = select.value;
+                    function deleteConfig(name) {
                         if (!name) return;
                         
                         vscode.postMessage({
