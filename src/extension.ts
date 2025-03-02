@@ -108,11 +108,22 @@ class SettingsManager {
 class ChatViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private _messages: Array<{role: string, content: string}> = [];
+    private _lastSelectedConfig: string = '';
+    private _lastSelectedModel: string = '';
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _settingsManager: SettingsManager
-    ) {}
+    ) {
+        // 初始化最后选择的配置为当前配置
+        this._lastSelectedConfig = this._settingsManager.getCurrentConfig();
+        
+        // 初始化最后选择的模型为当前配置的第一个模型
+        const settings = this._settingsManager.getSettings();
+        if (settings.models && settings.models.length > 0) {
+            this._lastSelectedModel = settings.models[0].name;
+        }
+    }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -132,7 +143,18 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             async (message) => {
                 switch (message.command) {
                     case 'sendMessage':
+                        // 保存用户选择的配置和模型
+                        this._lastSelectedConfig = message.configName;
+                        this._lastSelectedModel = message.modelName;
                         await this._handleMessage(message.text, message.configName, message.modelName);
+                        break;
+                    case 'configChanged':
+                        // 当用户切换配置时，保存选择
+                        this._lastSelectedConfig = message.configName;
+                        break;
+                    case 'modelChanged':
+                        // 当用户切换模型时，保存选择
+                        this._lastSelectedModel = message.modelName;
                         break;
                 }
             }
@@ -332,8 +354,20 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
     private _getHtmlForWebview(webview: vscode.Webview) {
         const configurations = this._settingsManager.getConfigurations();
-        const currentConfig = this._settingsManager.getCurrentConfig();
-        const currentSettings = this._settingsManager.getSettings();
+        const currentConfig = this._lastSelectedConfig || this._settingsManager.getCurrentConfig();
+        
+        // 获取当前配置的设置
+        let currentSettings: Configuration;
+        if (currentConfig && configurations[currentConfig]) {
+            currentSettings = configurations[currentConfig];
+        } else {
+            currentSettings = this._settingsManager.getSettings();
+        }
+        
+        // 确定要选中的模型
+        const selectedModel = this._lastSelectedModel || 
+                             (currentSettings.models && currentSettings.models.length > 0 ? 
+                              currentSettings.models[0].name : '');
         
         return `
             <!DOCTYPE html>
@@ -481,7 +515,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         <div class="select-container">
                             <div>
                                 <div class="select-label">配置:</div>
-                                <select id="configSelect" onchange="updateModelSelect(this.value)">
+                                <select id="configSelect" onchange="handleConfigChange(this.value)">
                                     ${Object.entries(configurations).map(([name]) => `
                                         <option value="${name}" ${name === currentConfig ? 'selected' : ''}>${name}</option>
                                     `).join('')}
@@ -489,9 +523,9 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                             </div>
                             <div>
                                 <div class="select-label">模型:</div>
-                                <select id="modelSelect">
-                                    ${(currentSettings.models || []).map((model, index) => `
-                                        <option value="${model.name}" ${index === 0 ? 'selected' : ''}>${model.name}</option>
+                                <select id="modelSelect" onchange="handleModelChange(this.value)">
+                                    ${(currentSettings.models || []).map(model => `
+                                        <option value="${model.name}" ${model.name === selectedModel ? 'selected' : ''}>${model.name}</option>
                                     `).join('')}
                                 </select>
                             </div>
@@ -509,6 +543,31 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                     // 存储所有配置信息，用于动态更新模型选择
                     const allConfigurations = ${JSON.stringify(configurations)};
                     
+                    // 当前选中的配置和模型
+                    let currentConfigName = "${currentConfig}";
+                    let currentModelName = "${selectedModel}";
+                    
+                    function handleConfigChange(configName) {
+                        currentConfigName = configName;
+                        updateModelSelect(configName);
+                        
+                        // 通知扩展配置已更改
+                        vscode.postMessage({
+                            command: 'configChanged',
+                            configName: configName
+                        });
+                    }
+                    
+                    function handleModelChange(modelName) {
+                        currentModelName = modelName;
+                        
+                        // 通知扩展模型已更改
+                        vscode.postMessage({
+                            command: 'modelChanged',
+                            modelName: modelName
+                        });
+                    }
+                    
                     function updateModelSelect(configName) {
                         const config = allConfigurations[configName];
                         if (!config || !config.models) return;
@@ -516,13 +575,35 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         const modelSelect = document.getElementById('modelSelect');
                         modelSelect.innerHTML = '';
                         
+                        // 记住之前选择的模型名称
+                        const previousModelName = currentModelName;
+                        let modelFound = false;
+                        
                         config.models.forEach((model, index) => {
                             const option = document.createElement('option');
                             option.value = model.name;
                             option.textContent = model.name;
-                            option.selected = index === 0; // 默认选中第一个
+                            
+                            // 如果之前选择的模型在新配置中存在，则选中它
+                            if (model.name === previousModelName) {
+                                option.selected = true;
+                                modelFound = true;
+                            }
+                            
                             modelSelect.appendChild(option);
                         });
+                        
+                        // 如果之前选择的模型在新配置中不存在，则选中第一个
+                        if (!modelFound && config.models.length > 0) {
+                            modelSelect.value = config.models[0].name;
+                            currentModelName = config.models[0].name;
+                            
+                            // 通知扩展模型已更改
+                            vscode.postMessage({
+                                command: 'modelChanged',
+                                modelName: currentModelName
+                            });
+                        }
                     }
                     
                     document.getElementById('messageInput').addEventListener('keypress', (e) => {
@@ -537,12 +618,6 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         const input = document.getElementById('messageInput');
                         const text = input.value.trim();
                         if (!text) return;
-
-                        const configSelect = document.getElementById('configSelect');
-                        const selectedConfig = configSelect.value;
-                        
-                        const modelSelect = document.getElementById('modelSelect');
-                        const selectedModel = modelSelect.value;
                         
                         isProcessing = true;
                         const sendButton = document.getElementById('sendButton');
@@ -552,8 +627,8 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         vscode.postMessage({
                             command: 'sendMessage',
                             text: text,
-                            configName: selectedConfig,
-                            modelName: selectedModel
+                            configName: currentConfigName,
+                            modelName: currentModelName
                         });
 
                         input.value = '';
@@ -581,7 +656,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                     function updateMessage(message) {
                         const messagesDiv = document.getElementById('messages');
                         const messageDiv = messagesDiv.lastElementChild;
-                        if (messageDiv && messageDiv.classList.contains(\`\${message.role}-message\`)) {
+                        if (messageDiv && messageDiv.classList.contains(\`\${message.role}-message\`) && !message.temporary) {
                             const content = message.content
                                 .replace(/\`\`\`(\\w*\\n)?([\\s\\S]*?)\\n?\`\`\`/g, '<pre><code>$2</code><button class="copy-button" onclick="copyCode(this)">复制</button></pre>')
                                 .replace(/\`([^\`]+)\`/g, '<code>$1</code>')
