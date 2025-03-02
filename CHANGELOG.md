@@ -1,5 +1,15 @@
 # Change Log
 
+## [0.2.35] - 2025-03-18
+
+### Added
+- 添加了QANDA.md文件，为VSCode Marketplace提供常见问题解答部分
+
+## [0.2.34] - 2025-03-17
+
+### Changed
+- 将扩展分类从"Other"更改为"AI"，提高在Marketplace中的可发现性
+
 ## [0.2.33] - 2025-03-16
 
 ### Fixed
