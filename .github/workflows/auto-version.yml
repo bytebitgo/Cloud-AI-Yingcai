@@ -1,0 +1,81 @@
+name: Auto Version Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: '版本更新类型 (patch, minor, major)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      changelog_message:
+        description: '更新日志内容'
+        required: true
+        default: '版本更新维护'
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_PAT }}
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Get current version
+        id: current-version
+        uses: martinbeentjes/npm-get-version-action@v1.3.1
+        
+      - name: Update version in package.json
+        id: update-version
+        run: |
+          npm version ${{ github.event.inputs.version_type }} --no-git-tag-version
+          echo "new_version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        
+      - name: Update version in package-lock.json
+        run: npm i --package-lock-only
+        
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+        
+      - name: Update CHANGELOG.md
+        run: |
+          NEW_VERSION="${{ steps.update-version.outputs.new_version }}"
+          DATE="${{ steps.date.outputs.date }}"
+          CHANGELOG_MSG="${{ github.event.inputs.changelog_message }}"
+          
+          # 创建新的更新日志条目
+          NEW_ENTRY="## [$NEW_VERSION] - $DATE\n\n### Changed\n- $CHANGELOG_MSG\n\n"
+          
+          # 将新条目插入到更新日志的顶部
+          sed -i "1s/# Change Log/# Change Log\n\n$NEW_ENTRY/" CHANGELOG.md
+        
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json package-lock.json CHANGELOG.md
+          git commit -m "chore: 更新版本至 ${{ steps.update-version.outputs.new_version }}"
+          
+      - name: Create tag
+        run: |
+          git tag v${{ steps.update-version.outputs.new_version }}
+          
+      - name: Push changes
+        run: |
+          git push
+          git push --tags 
