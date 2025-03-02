@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nebulaGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#191970" />
+      <stop offset="100%" stop-color="#8A2BE2" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="starGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- 背景星云 -->
+  <ellipse cx="64" cy="64" rx="50" ry="40" fill="url(#nebulaGradient)" opacity="0.3" />
+  
+  <!-- 星云形状 -->
+  <path d="M30,50 C40,30 60,40 70,30 C80,20 90,40 100,50 C110,60 100,80 90,90 C80,100 60,90 50,100 C40,110 30,90 20,80 C10,70 20,60 30,50 Z" 
+        fill="url(#nebulaGradient)" opacity="0.5" filter="url(#glow)" />
+  
+  <!-- 星星 -->
+  <circle cx="40" cy="40" r="1" fill="#FFFFFF" filter="url(#starGlow)" />
+  <circle cx="90" cy="35" r="1.5" fill="#FFFFFF" filter="url(#starGlow)" />
+  <circle cx="75" cy="85" r="1" fill="#FFFFFF" filter="url(#starGlow)" />
+  <circle cx="30" cy="70" r="1.2" fill="#FFFFFF" filter="url(#starGlow)" />
+  <circle cx="60" cy="30" r="1" fill="#FFFFFF" filter="url(#starGlow)" />
+  <circle cx="85" cy="60" r="1.3" fill="#FFFFFF" filter="url(#starGlow)" />
+  <circle cx="50" cy="90" r="1" fill="#FFFFFF" filter="url(#starGlow)" />
+  <circle cx="100" cy="80" r="1.5" fill="#FFFFFF" filter="url(#starGlow)" />
+  <circle cx="25" cy="50" r="1" fill="#FFFFFF" filter="url(#starGlow)" />
+  <circle cx="70" cy="70" r="1.2" fill="#FFFFFF" filter="url(#starGlow)" />
+  
+  <!-- 数字元素 -->
+  <text x="35" y="60" font-family="Courier, monospace" font-size="6" fill="#FFFFFF" opacity="0.7">01001</text>
+  <text x="80" y="50" font-family="Courier, monospace" font-size="6" fill="#FFFFFF" opacity="0.7">10110</text>
+  <text x="60" y="85" font-family="Courier, monospace" font-size="6" fill="#FFFFFF" opacity="0.7">11010</text>
+  
+  <!-- 中心AI -->
+  <circle cx="64" cy="64" r="15" fill="url(#nebulaGradient)" opacity="0.7" filter="url(#glow)" />
+  <text x="64" y="68" font-family="Arial, sans-serif" font-size="14" font-weight="bold" 
+        text-anchor="middle" fill="#FFFFFF">AI</text>
+</svg> 

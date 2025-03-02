@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF00FF" />
+      <stop offset="100%" stop-color="#9400D3" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- 背景圆 -->
+  <circle cx="64" cy="64" r="50" fill="#4B0082" opacity="0.1" />
+  
+  <!-- 波形线 1 -->
+  <path d="M20,64 C30,44 40,84 50,64 C60,44 70,84 80,64 C90,44 100,84 110,64" 
+        fill="none" stroke="url(#waveGradient)" stroke-width="3" filter="url(#glow)" />
+  
+  <!-- 波形线 2 -->
+  <path d="M20,54 C30,34 40,74 50,54 C60,34 70,74 80,54 C90,34 100,74 110,54" 
+        fill="none" stroke="url(#waveGradient)" stroke-width="2" filter="url(#glow)" opacity="0.7" />
+  
+  <!-- 波形线 3 -->
+  <path d="M20,74 C30,54 40,94 50,74 C60,54 70,94 80,74 C90,54 100,94 110,74" 
+        fill="none" stroke="url(#waveGradient)" stroke-width="2" filter="url(#glow)" opacity="0.7" />
+  
+  <!-- 波形线 4 -->
+  <path d="M20,44 C30,24 40,64 50,44 C60,24 70,64 80,44 C90,24 100,64 110,44" 
+        fill="none" stroke="url(#waveGradient)" stroke-width="1" filter="url(#glow)" opacity="0.5" />
+  
+  <!-- 波形线 5 -->
+  <path d="M20,84 C30,64 40,104 50,84 C60,64 70,104 80,84 C90,64 100,104 110,84" 
+        fill="none" stroke="url(#waveGradient)" stroke-width="1" filter="url(#glow)" opacity="0.5" />
+  
+  <!-- 中心圆 -->
+  <circle cx="64" cy="64" r="15" fill="url(#waveGradient)" opacity="0.3" />
+  
+  <!-- AI文字 -->
+  <text x="64" y="68" font-family="Arial, sans-serif" font-size="14" font-weight="bold" 
+        text-anchor="middle" fill="#FFFFFF">AI</text>
+</svg> 

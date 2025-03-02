@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cloudGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00BFFF" />
+      <stop offset="100%" stop-color="#0078D7" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 云朵形状 -->
+  <path d="M88,64 C88,52 78,42 66,42 C58,42 50,46 46,54 C44,52 40,50 36,50 C28,50 22,56 22,64 C22,72 28,78 36,78 L86,78 C94,78 100,72 100,64 C100,56 94,50 88,50 C88,50 88,58 88,64 Z" 
+        fill="url(#cloudGradient)" stroke="none" />
+  
+  <!-- 电路板元素 -->
+  <path d="M40,64 L50,64 M60,64 L70,64 M80,64 L90,64" 
+        stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" />
+  <path d="M50,64 L50,70 M70,64 L70,58" 
+        stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" />
+  
+  <!-- 节点 -->
+  <circle cx="40" cy="64" r="2" fill="#FFFFFF" />
+  <circle cx="50" cy="64" r="2" fill="#FFFFFF" />
+  <circle cx="60" cy="64" r="2" fill="#FFFFFF" />
+  <circle cx="70" cy="64" r="2" fill="#FFFFFF" />
+  <circle cx="80" cy="64" r="2" fill="#FFFFFF" />
+  <circle cx="90" cy="64" r="2" fill="#FFFFFF" />
+  <circle cx="50" cy="70" r="2" fill="#FFFFFF" />
+  <circle cx="70" cy="58" r="2" fill="#FFFFFF" />
+  
+  <!-- AI文字 -->
+  <text x="64" y="68" font-family="Arial, sans-serif" font-size="14" font-weight="bold" 
+        text-anchor="middle" fill="#FFFFFF">AI</text>
+</svg> 

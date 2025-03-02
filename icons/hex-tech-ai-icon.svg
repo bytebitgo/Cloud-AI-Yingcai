@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF7F50" />
+      <stop offset="100%" stop-color="#696969" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 主六边形 -->
+  <path d="M64,24 L104,44 L104,84 L64,104 L24,84 L24,44 Z" 
+        fill="none" stroke="url(#hexGradient)" stroke-width="2" />
+  
+  <!-- 内部六边形 -->
+  <path d="M64,34 L94,49 L94,79 L64,94 L34,79 L34,49 Z" 
+        fill="none" stroke="url(#hexGradient)" stroke-width="1.5" stroke-dasharray="2,2" />
+  
+  <!-- 中心六边形 -->
+  <path d="M64,44 L84,54 L84,74 L64,84 L44,74 L44,54 Z" 
+        fill="url(#hexGradient)" opacity="0.3" />
+  
+  <!-- 连接线 -->
+  <line x1="24" y1="44" x2="44" y2="54" stroke="url(#hexGradient)" stroke-width="1" />
+  <line x1="24" y1="84" x2="44" y2="74" stroke="url(#hexGradient)" stroke-width="1" />
+  <line x1="104" y1="44" x2="84" y2="54" stroke="url(#hexGradient)" stroke-width="1" />
+  <line x1="104" y1="84" x2="84" y2="74" stroke="url(#hexGradient)" stroke-width="1" />
+  <line x1="64" y1="24" x2="64" y2="44" stroke="url(#hexGradient)" stroke-width="1" />
+  <line x1="64" y1="104" x2="64" y2="84" stroke="url(#hexGradient)" stroke-width="1" />
+  
+  <!-- 节点 -->
+  <circle cx="24" cy="44" r="3" fill="url(#hexGradient)" />
+  <circle cx="24" cy="84" r="3" fill="url(#hexGradient)" />
+  <circle cx="104" cy="44" r="3" fill="url(#hexGradient)" />
+  <circle cx="104" cy="84" r="3" fill="url(#hexGradient)" />
+  <circle cx="64" cy="24" r="3" fill="url(#hexGradient)" />
+  <circle cx="64" cy="104" r="3" fill="url(#hexGradient)" />
+  
+  <!-- 中心AI文字 -->
+  <text x="64" y="68" font-family="Arial, sans-serif" font-size="16" font-weight="bold" 
+        text-anchor="middle" fill="#FFFFFF">AI</text>
+</svg> 

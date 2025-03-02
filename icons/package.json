@@ -1,0 +1,12 @@
+{
+  "name": "svg-to-png-converter",
+  "version": "1.0.0",
+  "description": "将SVG图标转换为PNG格式",
+  "main": "convert-svg-to-png.js",
+  "scripts": {
+    "convert": "node convert-svg-to-png.js"
+  },
+  "dependencies": {
+    "sharp": "^0.33.2"
+  }
+} 

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00CED1" />
+      <stop offset="100%" stop-color="#20B2AA" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 背景圆 -->
+  <circle cx="64" cy="64" r="50" fill="#004D4D" opacity="0.1" />
+  
+  <!-- 数据流线条 -->
+  <path d="M30,40 C50,20 80,30 100,50 C120,70 100,100 70,100 C40,100 20,80 30,40 Z" 
+        fill="none" stroke="url(#flowGradient)" stroke-width="2" stroke-opacity="0.6" />
+  
+  <!-- 数据点 -->
+  <circle cx="30" cy="40" r="3" fill="url(#flowGradient)" />
+  <circle cx="100" cy="50" r="3" fill="url(#flowGradient)" />
+  <circle cx="70" cy="100" r="3" fill="url(#flowGradient)" />
+  
+  <!-- 数据流动画效果 -->
+  <path d="M30,40 C40,30 50,30 60,40 C70,50 80,60 90,50 C100,40 90,70 80,80 C70,90 50,90 40,80 C30,70 20,50 30,40 Z" 
+        fill="none" stroke="url(#flowGradient)" stroke-width="1.5" stroke-dasharray="3,3" />
+  
+  <!-- 小数据点 -->
+  <circle cx="60" cy="40" r="2" fill="url(#flowGradient)" />
+  <circle cx="90" cy="50" r="2" fill="url(#flowGradient)" />
+  <circle cx="80" cy="80" r="2" fill="url(#flowGradient)" />
+  <circle cx="40" cy="80" r="2" fill="url(#flowGradient)" />
+  
+  <!-- 中心AI形象 -->
+  <path d="M50,60 L60,60 L60,70 L70,70 L70,60 L80,60 L80,50 L70,50 L70,40 L60,40 L60,50 L50,50 Z" 
+        fill="url(#flowGradient)" />
+  
+  <!-- 数据流线 -->
+  <line x1="30" y1="64" x2="50" y2="64" stroke="url(#flowGradient)" stroke-width="1" stroke-dasharray="2,2" />
+  <line x1="80" y1="64" x2="100" y2="64" stroke="url(#flowGradient)" stroke-width="1" stroke-dasharray="2,2" />
+  <line x1="64" y1="30" x2="64" y2="50" stroke="url(#flowGradient)" stroke-width="1" stroke-dasharray="2,2" />
+  <line x1="64" y1="80" x2="64" y2="100" stroke="url(#flowGradient)" stroke-width="1" stroke-dasharray="2,2" />
+</svg> 

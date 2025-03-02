@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="circuitGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E90FF" />
+      <stop offset="100%" stop-color="#32CD32" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 背景圆 -->
+  <circle cx="64" cy="64" r="50" fill="#001A33" opacity="0.1" />
+  
+  <!-- 电路板背景 -->
+  <rect x="30" y="30" width="68" height="68" rx="5" ry="5" fill="#001A33" opacity="0.3" />
+  
+  <!-- 电路线路 -->
+  <path d="M30,50 L45,50 L45,40 L60,40 L60,50 L75,50 L75,70 L90,70 L90,85 L75,85 L75,70 L60,70 L60,85 L45,85 L45,70 L30,70" 
+        fill="none" stroke="url(#circuitGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <path d="M30,60 L40,60 L40,80 L55,80 L55,60 L70,60 L70,40 L85,40 L85,60 L98,60" 
+        fill="none" stroke="url(#circuitGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- 节点 -->
+  <circle cx="45" cy="50" r="3" fill="url(#circuitGradient)" />
+  <circle cx="60" cy="40" r="3" fill="url(#circuitGradient)" />
+  <circle cx="75" cy="50" r="3" fill="url(#circuitGradient)" />
+  <circle cx="90" cy="70" r="3" fill="url(#circuitGradient)" />
+  <circle cx="75" cy="85" r="3" fill="url(#circuitGradient)" />
+  <circle cx="60" cy="70" r="3" fill="url(#circuitGradient)" />
+  <circle cx="45" cy="85" r="3" fill="url(#circuitGradient)" />
+  
+  <circle cx="40" cy="60" r="3" fill="url(#circuitGradient)" />
+  <circle cx="55" cy="80" r="3" fill="url(#circuitGradient)" />
+  <circle cx="70" cy="60" r="3" fill="url(#circuitGradient)" />
+  <circle cx="85" cy="40" r="3" fill="url(#circuitGradient)" />
+  
+  <!-- 中心芯片 -->
+  <rect x="54" y="54" width="20" height="20" rx="2" ry="2" fill="url(#circuitGradient)" opacity="0.7" />
+  
+  <!-- AI文字 -->
+  <text x="64" y="68" font-family="Arial, sans-serif" font-size="12" font-weight="bold" 
+        text-anchor="middle" fill="#FFFFFF">AI</text>
+</svg> 

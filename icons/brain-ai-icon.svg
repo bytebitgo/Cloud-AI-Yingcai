@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="brainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4285F4" />
+      <stop offset="100%" stop-color="#34A853" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 大脑外轮廓 -->
+  <path d="M64,16 C38,16 20,40 20,64 C20,88 38,112 64,112 C90,112 108,88 108,64 C108,40 90,16 64,16 Z" 
+        fill="none" stroke="url(#brainGradient)" stroke-width="2" />
+  
+  <!-- 内部连接线路 -->
+  <path d="M40,48 C50,38 60,54 70,44 C80,34 75,64 85,54" 
+        fill="none" stroke="url(#brainGradient)" stroke-width="1.5" />
+  <path d="M40,80 C50,70 60,86 70,76 C80,66 75,96 85,86" 
+        fill="none" stroke="url(#brainGradient)" stroke-width="1.5" />
+  
+  <!-- 节点 -->
+  <circle cx="40" cy="48" r="3" fill="url(#brainGradient)" />
+  <circle cx="70" cy="44" r="3" fill="url(#brainGradient)" />
+  <circle cx="85" cy="54" r="3" fill="url(#brainGradient)" />
+  <circle cx="40" cy="80" r="3" fill="url(#brainGradient)" />
+  <circle cx="70" cy="76" r="3" fill="url(#brainGradient)" />
+  <circle cx="85" cy="86" r="3" fill="url(#brainGradient)" />
+  
+  <!-- 中心AI文字 -->
+  <text x="64" y="68" font-family="Arial, sans-serif" font-size="16" font-weight="bold" 
+        text-anchor="middle" fill="url(#brainGradient)">AI</text>
+</svg> 
