@@ -132,14 +132,14 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             async (message) => {
                 switch (message.command) {
                     case 'sendMessage':
-                        await this._handleMessage(message.text, message.configName);
+                        await this._handleMessage(message.text, message.configName, message.modelName);
                         break;
                 }
             }
         );
     }
 
-    private async _handleMessage(text: string, configName?: string) {
+    private async _handleMessage(text: string, configName?: string, modelName?: string) {
         if (!this._view) {
             console.error('Webview is not initialized');
             return;
@@ -182,12 +182,18 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         }
 
         try {
-            // 获取选中的模型
-            const selectedModel = settings.models.find(m => m.selected)?.name || settings.models[0].name;
+            // 获取选中的模型，如果指定了模型名称，则使用该模型
+            let selectedModel: string;
+            if (modelName) {
+                selectedModel = modelName;
+            } else {
+                selectedModel = settings.models.find(m => m.selected)?.name || settings.models[0].name;
+            }
             
             // 记录请求信息
             console.log('发送请求到:', settings.endpoint);
             console.log('使用配置:', settings.name);
+            console.log('使用模型:', selectedModel);
             console.log('请求参数:', {
                 model: selectedModel,
                 messages: this._messages,
@@ -327,6 +333,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     private _getHtmlForWebview(webview: vscode.Webview) {
         const configurations = this._settingsManager.getConfigurations();
         const currentConfig = this._settingsManager.getCurrentConfig();
+        const currentSettings = this._settingsManager.getSettings();
         
         return `
             <!DOCTYPE html>
@@ -388,6 +395,10 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         display: flex;
                         gap: 8px;
                     }
+                    .select-container {
+                        display: flex;
+                        gap: 8px;
+                    }
                     #messageInput {
                         flex: 1;
                         padding: 6px;
@@ -396,13 +407,18 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         background: var(--vscode-input-background);
                         color: var(--vscode-input-foreground);
                     }
-                    #configSelect {
+                    select {
                         padding: 6px;
                         border: 1px solid var(--vscode-input-border);
                         border-radius: 4px;
                         background: var(--vscode-input-background);
                         color: var(--vscode-input-foreground);
+                    }
+                    #configSelect {
                         min-width: 120px;
+                    }
+                    #modelSelect {
+                        min-width: 150px;
                     }
                     button {
                         padding: 6px 12px;
@@ -449,21 +465,38 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         color: var(--vscode-descriptionForeground);
                         margin-bottom: 5px;
                     }
+                    .select-label {
+                        font-size: 12px;
+                        color: var(--vscode-descriptionForeground);
+                        margin-right: 5px;
+                        display: flex;
+                        align-items: center;
+                    }
                 </style>
             </head>
             <body>
                 <div class="chat-container">
                     <div class="messages" id="messages"></div>
                     <div class="input-container">
-                        <div class="config-info">
-                            选择要使用的配置：
+                        <div class="select-container">
+                            <div>
+                                <div class="select-label">配置:</div>
+                                <select id="configSelect" onchange="updateModelSelect(this.value)">
+                                    ${Object.entries(configurations).map(([name]) => `
+                                        <option value="${name}" ${name === currentConfig ? 'selected' : ''}>${name}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <div class="select-label">模型:</div>
+                                <select id="modelSelect">
+                                    ${(currentSettings.models || []).map((model, index) => `
+                                        <option value="${model.name}" ${index === 0 ? 'selected' : ''}>${model.name}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
                         </div>
                         <div class="input-row">
-                            <select id="configSelect">
-                                ${Object.entries(configurations).map(([name]) => `
-                                    <option value="${name}" ${name === currentConfig ? 'selected' : ''}>${name}</option>
-                                `).join('')}
-                            </select>
                             <input type="text" id="messageInput" placeholder="输入消息...">
                             <button onclick="sendMessage()" id="sendButton">发送</button>
                         </div>
@@ -472,6 +505,25 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                 <script>
                     const vscode = acquireVsCodeApi();
                     let isProcessing = false;
+                    
+                    // 存储所有配置信息，用于动态更新模型选择
+                    const allConfigurations = ${JSON.stringify(configurations)};
+                    
+                    function updateModelSelect(configName) {
+                        const config = allConfigurations[configName];
+                        if (!config || !config.models) return;
+                        
+                        const modelSelect = document.getElementById('modelSelect');
+                        modelSelect.innerHTML = '';
+                        
+                        config.models.forEach((model, index) => {
+                            const option = document.createElement('option');
+                            option.value = model.name;
+                            option.textContent = model.name;
+                            option.selected = index === 0; // 默认选中第一个
+                            modelSelect.appendChild(option);
+                        });
+                    }
                     
                     document.getElementById('messageInput').addEventListener('keypress', (e) => {
                         if (e.key === 'Enter' && !isProcessing) {
@@ -489,6 +541,9 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         const configSelect = document.getElementById('configSelect');
                         const selectedConfig = configSelect.value;
                         
+                        const modelSelect = document.getElementById('modelSelect');
+                        const selectedModel = modelSelect.value;
+                        
                         isProcessing = true;
                         const sendButton = document.getElementById('sendButton');
                         sendButton.disabled = true;
@@ -497,7 +552,8 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         vscode.postMessage({
                             command: 'sendMessage',
                             text: text,
-                            configName: selectedConfig
+                            configName: selectedConfig,
+                            modelName: selectedModel
                         });
 
                         input.value = '';
