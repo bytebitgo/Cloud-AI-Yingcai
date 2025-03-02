@@ -2,7 +2,7 @@
   "name": "cloud-ai-yingcai",
   "displayName": "Cloud-AI-Yingcai",
   "description": "VS Code extension for chatting with AI using Cloud-AI-Yingcai",
-  "version": "0.2.27",
+  "version": "0.2.28",
   "engines": {
     "vscode": "^1.85.0"
   },
