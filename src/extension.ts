@@ -651,29 +651,43 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                     .config-list {
                         margin-bottom: 20px;
                     }
-                    .config-item {
-                        padding: 8px;
-                        margin-bottom: 8px;
-                        border: 1px solid var(--vscode-input-border);
-                        border-radius: 4px;
+                    .select-wrapper {
                         display: flex;
-                        justify-content: space-between;
+                        gap: 10px;
                         align-items: center;
                     }
-                    .config-item.selected {
-                        background: var(--vscode-editor-lineHighlightBackground);
+                    .config-select {
+                        flex: 1;
+                        padding: 6px;
+                        border: 1px solid var(--vscode-input-border);
+                        border-radius: 4px;
+                        background: var(--vscode-input-background);
+                        color: var(--vscode-input-foreground);
+                        min-width: 200px;
+                    }
+                    .config-actions {
+                        display: flex;
+                        gap: 8px;
                     }
                 </style>
             </head>
             <body>
                 <div class="config-list">
                     <h3>已保存的配置</h3>
-                    ${Object.entries(configurations).map(([name, config]) => `
-                        <div class="config-item ${name === currentConfig ? 'selected' : ''}">
-                            <span>${name}</span>
-                            <button onclick="deleteConfig('${name}')" class="danger">删除</button>
-                        </div>
-                    `).join('')}
+                    <div class="select-wrapper">
+                        <select id="configSelect" onchange="handleConfigSelect(this.value)" class="config-select">
+                            <option value="">-- 选择配置 --</option>
+                            ${Object.entries(configurations).map(([name]) => `
+                                <option value="${name}" ${name === currentConfig ? 'selected' : ''}>${name}</option>
+                            `).join('')}
+                        </select>
+                        ${Object.keys(configurations).length > 0 ? `
+                            <div class="config-actions">
+                                <button onclick="editSelectedConfig()">编辑</button>
+                                <button onclick="deleteSelectedConfig()" class="danger">删除</button>
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
                 
                 <div class="card">
@@ -739,7 +753,53 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                         });
                     }
 
-                    function deleteConfig(name) {
+                    function handleConfigSelect(name) {
+                        if (name) {
+                            editSelectedConfig();
+                        } else {
+                            // 清空表单
+                            document.getElementById('name').value = '';
+                            document.getElementById('endpoint').value = '';
+                            document.getElementById('apiKey').value = '';
+                            
+                            // 重置模型选择
+                            const modelInputs = document.getElementsByName('model');
+                            if (modelInputs.length > 0) {
+                                modelInputs[0].checked = true;
+                            }
+                        }
+                    }
+
+                    function editSelectedConfig() {
+                        const select = document.getElementById('configSelect');
+                        const name = select.value;
+                        if (!name) return;
+
+                        const configs = ${JSON.stringify(configurations)};
+                        const config = configs[name];
+                        
+                        if (config) {
+                            document.getElementById('name').value = config.name;
+                            document.getElementById('endpoint').value = config.endpoint;
+                            document.getElementById('apiKey').value = config.apiKey;
+                            
+                            // 更新模型选择
+                            const modelInputs = document.getElementsByName('model');
+                            config.models.forEach(configModel => {
+                                for(let input of modelInputs) {
+                                    if(input.value === configModel.name) {
+                                        input.checked = configModel.selected;
+                                    }
+                                }
+                            });
+                        }
+                    }
+
+                    function deleteSelectedConfig() {
+                        const select = document.getElementById('configSelect');
+                        const name = select.value;
+                        if (!name) return;
+                        
                         vscode.postMessage({
                             command: 'showDeleteConfirm',
                             name: name
