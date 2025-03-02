@@ -132,14 +132,14 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             async (message) => {
                 switch (message.command) {
                     case 'sendMessage':
-                        await this._handleMessage(message.text);
+                        await this._handleMessage(message.text, message.configName);
                         break;
                 }
             }
         );
     }
 
-    private async _handleMessage(text: string) {
+    private async _handleMessage(text: string, configName?: string) {
         if (!this._view) {
             console.error('Webview is not initialized');
             return;
@@ -162,17 +162,34 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             temporary: true
         });
 
-        const settings = this._settingsManager.getSettings();
+        // 获取设置，如果指定了配置名称，则使用该配置
+        let settings: Configuration;
+        if (configName) {
+            const configurations = this._settingsManager.getConfigurations();
+            if (configurations[configName]) {
+                settings = configurations[configName];
+            } else {
+                this._showError(`找不到配置: ${configName}`);
+                return;
+            }
+        } else {
+            settings = this._settingsManager.getSettings();
+        }
+
         if (!settings.endpoint || !settings.apiKey) {
             this._showError('请先在设置面板配置endpoint和apiKey');
             return;
         }
 
         try {
+            // 获取选中的模型
+            const selectedModel = settings.models.find(m => m.selected)?.name || settings.models[0].name;
+            
             // 记录请求信息
             console.log('发送请求到:', settings.endpoint);
+            console.log('使用配置:', settings.name);
             console.log('请求参数:', {
-                model: this._settingsManager.getSelectedModel(),
+                model: selectedModel,
                 messages: this._messages,
                 temperature: 0.7,
                 max_tokens: 2048,
@@ -183,7 +200,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             });
 
             const response = await axios.post(settings.endpoint, {
-                model: this._settingsManager.getSelectedModel(),
+                model: selectedModel,
                 messages: this._messages,
                 temperature: 0.7,
                 max_tokens: 2048,
@@ -308,6 +325,9 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
+        const configurations = this._settingsManager.getConfigurations();
+        const currentConfig = this._settingsManager.getCurrentConfig();
+        
         return `
             <!DOCTYPE html>
             <html lang="zh">
@@ -361,6 +381,11 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                     }
                     .input-container {
                         display: flex;
+                        flex-direction: column;
+                        gap: 8px;
+                    }
+                    .input-row {
+                        display: flex;
                         gap: 8px;
                     }
                     #messageInput {
@@ -370,6 +395,14 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         border-radius: 4px;
                         background: var(--vscode-input-background);
                         color: var(--vscode-input-foreground);
+                    }
+                    #configSelect {
+                        padding: 6px;
+                        border: 1px solid var(--vscode-input-border);
+                        border-radius: 4px;
+                        background: var(--vscode-input-background);
+                        color: var(--vscode-input-foreground);
+                        min-width: 120px;
                     }
                     button {
                         padding: 6px 12px;
@@ -411,14 +444,29 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                     .copy-button:hover {
                         background: var(--vscode-button-hoverBackground);
                     }
+                    .config-info {
+                        font-size: 12px;
+                        color: var(--vscode-descriptionForeground);
+                        margin-bottom: 5px;
+                    }
                 </style>
             </head>
             <body>
                 <div class="chat-container">
                     <div class="messages" id="messages"></div>
                     <div class="input-container">
-                        <input type="text" id="messageInput" placeholder="输入消息...">
-                        <button onclick="sendMessage()" id="sendButton">发送</button>
+                        <div class="config-info">
+                            选择要使用的配置：
+                        </div>
+                        <div class="input-row">
+                            <select id="configSelect">
+                                ${Object.entries(configurations).map(([name]) => `
+                                    <option value="${name}" ${name === currentConfig ? 'selected' : ''}>${name}</option>
+                                `).join('')}
+                            </select>
+                            <input type="text" id="messageInput" placeholder="输入消息...">
+                            <button onclick="sendMessage()" id="sendButton">发送</button>
+                        </div>
                     </div>
                 </div>
                 <script>
@@ -438,6 +486,9 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         const text = input.value.trim();
                         if (!text) return;
 
+                        const configSelect = document.getElementById('configSelect');
+                        const selectedConfig = configSelect.value;
+                        
                         isProcessing = true;
                         const sendButton = document.getElementById('sendButton');
                         sendButton.disabled = true;
@@ -445,7 +496,8 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
                         vscode.postMessage({
                             command: 'sendMessage',
-                            text: text
+                            text: text,
+                            configName: selectedConfig
                         });
 
                         input.value = '';

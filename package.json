@@ -2,7 +2,7 @@
   "name": "cloudflare-ai-gateway",
   "displayName": "Cloudflare AI Gateway",
   "description": "VS Code extension for chatting with AI using Cloudflare AI Gateway",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "engines": {
     "vscode": "^1.85.0"
   },
