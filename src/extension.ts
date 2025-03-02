@@ -159,6 +159,27 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         
         console.log('Webview已创建，使用配置:', this._lastSelectedConfig, '模型:', this._lastSelectedModel);
 
+        // 添加配置变更监听器
+        const configChangeListener = vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('cloudflare-ai-gateway.configurations')) {
+                console.log('检测到配置变更，刷新Webview');
+                if (this._view) {
+                    this._view.webview.html = this._getHtmlForWebview(this._view.webview);
+                    // 同步状态
+                    this._view.webview.postMessage({
+                        type: 'syncState',
+                        config: this._lastSelectedConfig,
+                        model: this._lastSelectedModel
+                    });
+                }
+            }
+        });
+        
+        // 确保在webview处置时清理监听器
+        webviewView.onDidDispose(() => {
+            configChangeListener.dispose();
+        });
+
         webviewView.webview.onDidReceiveMessage(
             async (message) => {
                 switch (message.command) {
@@ -187,6 +208,28 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                             config: this._lastSelectedConfig,
                             model: this._lastSelectedModel
                         });
+                        break;
+                    case 'reloadConfigurations':
+                        // 当前端检测到配置不存在时，重新加载配置
+                        console.log('收到重新加载配置请求');
+                        // 重新获取最新配置
+                        const configurations = this._settingsManager.getConfigurations();
+                        // 如果当前选择的配置不存在，重置为空或第一个可用配置
+                        if (this._lastSelectedConfig && !configurations[this._lastSelectedConfig]) {
+                            const configNames = Object.keys(configurations);
+                            this._lastSelectedConfig = configNames.length > 0 ? configNames[0] : '';
+                            console.log('重置当前配置为:', this._lastSelectedConfig);
+                        }
+                        // 重新生成HTML
+                        if (this._view) {
+                            this._view.webview.html = this._getHtmlForWebview(this._view.webview);
+                            // 同步状态
+                            this._view.webview.postMessage({
+                                type: 'syncState',
+                                config: this._lastSelectedConfig,
+                                model: this._lastSelectedModel
+                            });
+                        }
                         break;
                 }
             }
@@ -400,6 +443,9 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         const selectedModel = this._lastSelectedModel || 
                              (currentSettings.models && currentSettings.models.length > 0 ? 
                               currentSettings.models[0].name : '');
+        
+        // 每次生成HTML时重新获取最新的配置列表
+        console.log('重新生成HTML，当前配置列表:', Object.keys(configurations));
         
         return `
             <!DOCTYPE html>
@@ -615,6 +661,12 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                                         modelSelect.value = message.model;
                                     }
                                 }
+                            } else {
+                                // 如果配置不存在，通知扩展重新加载配置
+                                console.log('配置不存在，请求重新加载配置');
+                                vscode.postMessage({
+                                    command: 'reloadConfigurations'
+                                });
                             }
                         }
                         
@@ -627,6 +679,15 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                     });
                     
                     function handleConfigChange(configName) {
+                        // 检查配置是否存在
+                        if (!allConfigurations[configName]) {
+                            console.log('配置不存在，请求重新加载配置');
+                            vscode.postMessage({
+                                command: 'reloadConfigurations'
+                            });
+                            return;
+                        }
+                        
                         currentConfigName = configName;
                         updateModelSelect(configName);
                         
@@ -649,7 +710,13 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                     
                     function updateModelSelect(configName) {
                         const config = allConfigurations[configName];
-                        if (!config || !config.models) return;
+                        if (!config || !config.models) {
+                            console.log('配置或模型不存在，请求重新加载配置');
+                            vscode.postMessage({
+                                command: 'reloadConfigurations'
+                            });
+                            return;
+                        }
                         
                         const modelSelect = document.getElementById('modelSelect');
                         modelSelect.innerHTML = '';
@@ -693,6 +760,15 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
                     function sendMessage() {
                         if (isProcessing) return;
+                        
+                        // 检查配置是否存在
+                        if (!allConfigurations[currentConfigName]) {
+                            console.log('配置不存在，请求重新加载配置');
+                            vscode.postMessage({
+                                command: 'reloadConfigurations'
+                            });
+                            return;
+                        }
                         
                         const input = document.getElementById('messageInput');
                         const text = input.value.trim();
@@ -804,22 +880,16 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                             vscode.window.showErrorMessage(error instanceof Error ? error.message : '保存设置失败');
                         }
                         break;
-                    case 'showDeleteConfirm':
-                        const answer = await vscode.window.showWarningMessage(
-                            `确定要删除配置 "${message.name}" 吗？`,
-                            { modal: true },
-                            '确定'
-                        );
-                        if (answer === '确定') {
-                            try {
-                                await this._settingsManager.deleteConfig(message.name);
-                                if (this._view) {
-                                    this._view.webview.html = this._getSettingsHtml(this._view.webview);
-                                    vscode.window.showInformationMessage('配置已删除');
-                                }
-                            } catch (error) {
-                                vscode.window.showErrorMessage(error instanceof Error ? error.message : '删除配置失败');
+                    case 'deleteConfig':
+                        // 直接删除配置，不需要确认
+                        try {
+                            await this._settingsManager.deleteConfig(message.name);
+                            if (this._view) {
+                                this._view.webview.html = this._getSettingsHtml(this._view.webview);
+                                vscode.window.showInformationMessage(`配置 "${message.name}" 已删除`);
                             }
+                        } catch (error) {
+                            vscode.window.showErrorMessage(error instanceof Error ? error.message : '删除配置失败');
                         }
                         break;
                 }
@@ -1107,7 +1177,7 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                         if (!name) return;
                         
                         vscode.postMessage({
-                            command: 'showDeleteConfirm',
+                            command: 'deleteConfig',
                             name: name
                         });
                     }
