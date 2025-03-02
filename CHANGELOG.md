@@ -1,5 +1,44 @@
 # Change Log
 
+## [0.2.44] - 2025-03-27
+
+### Added
+- 添加了PowerShell版本的标签推送脚本(push-tag.ps1)，替代批处理脚本
+- 新脚本提供更强大的错误处理能力和更好的中文支持
+- 使用PowerShell原生JSON解析功能，无需依赖外部命令
+- 添加了彩色输出，提升用户体验
+
+## [0.2.43] - 2025-03-26
+
+### Added
+- 在Windows批处理脚本(push-tag.bat)中添加了详细的错误说明注释
+- 解释了": was unexpected at this time."错误的常见原因和解决方法
+- 提供了批处理脚本编写的最佳实践建议
+
+## [0.2.42] - 2025-03-25
+
+### Fixed
+- 完全重写了Windows批处理脚本(push-tag.bat)，使用更简单的方法实现标签检查
+- 使用临时文件存储git标签列表，避免管道和重定向导致的语法错误
+- 彻底解决了持续出现的": was unexpected at this time."错误
+
+## [0.2.41] - 2025-03-24
+
+### Fixed
+- 进一步修复了Windows批处理脚本(push-tag.bat)中的语法错误，使用更可靠的for循环方法检查Git标签
+- 彻底解决了运行时出现": was unexpected at this time."的问题
+
+## [0.2.40] - 2025-03-23
+
+### Fixed
+- 修复了Windows批处理脚本(push-tag.bat)中的语法错误，解决了运行时出现": was unexpected at this time."的问题
+- 改进了Git标签检查的方法，使用临时文件和findstr命令提高可靠性
+
+## [0.2.39] - 2025-03-22
+
+### Fixed
+- 修复了Windows批处理脚本(push-tag.bat)中文显示乱码问题，通过添加UTF-8代码页设置(chcp 65001)解决
+
 ## [0.2.38] - 2025-03-21
 
 ### Fixed
