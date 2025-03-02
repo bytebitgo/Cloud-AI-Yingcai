@@ -636,6 +636,11 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                     }
                     .model-select {
                         margin-bottom: 5px;
+                        display: flex;
+                        align-items: center;
+                    }
+                    .model-select input[type="radio"] {
+                        margin-right: 5px;
                     }
                     .card {
                         padding: 10px;
@@ -686,16 +691,22 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                     </div>
                     <div class="form-group">
                         <label>模型选择</label>
-                        ${(settings.models || []).map(model => `
-                            <div class="model-select">
-                                <input type="radio" 
-                                    name="model" 
-                                    value="${model.name}"
-                                    id="${model.name}"
-                                    ${model.selected ? 'checked' : ''}>
-                                <label for="${model.name}">${model.name}</label>
-                            </div>
-                        `).join('')}
+                        <div id="modelsList">
+                            ${(settings.models || []).map(model => `
+                                <div class="model-select">
+                                    <input type="radio" 
+                                        name="model" 
+                                        value="${model.name}"
+                                        id="${model.name}"
+                                        ${model.selected ? 'checked' : ''}>
+                                    <label for="${model.name}">${model.name}</label>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <input type="text" id="newModelName" placeholder="输入新模型名称">
+                            <button onclick="addNewModel()" style="margin-top: 5px;">添加新模型</button>
+                        </div>
                     </div>
                     <button onclick="saveSettings()">保存设置</button>
                 </div>
@@ -733,6 +744,30 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                             command: 'showDeleteConfirm',
                             name: name
                         });
+                    }
+
+                    function addNewModel() {
+                        const newModelName = document.getElementById('newModelName').value.trim();
+                        if (!newModelName) {
+                            vscode.postMessage({
+                                command: 'showError',
+                                text: '请输入模型名称'
+                            });
+                            return;
+                        }
+
+                        const modelsList = document.getElementById('modelsList');
+                        const newModelHtml = \`
+                            <div class="model-select">
+                                <input type="radio" 
+                                    name="model" 
+                                    value="\${newModelName}"
+                                    id="\${newModelName}">
+                                <label for="\${newModelName}">\${newModelName}</label>
+                            </div>
+                        \`;
+                        modelsList.insertAdjacentHTML('beforeend', newModelHtml);
+                        document.getElementById('newModelName').value = '';
                     }
                 </script>
             </body>
