@@ -2,7 +2,7 @@
   "name": "cloud-ai-yingcai",
   "displayName": "Cloud-AI-Yingcai",
   "description": "VS Code extension for chatting with AI using Cloud-AI-Yingcai",
-  "version": "0.2.31",
+  "version": "0.2.33",
   "publisher": "Cloud-AI-Yingcai",
   "icon": "icons/png/robot-ai-icon.png",
   "engines": {
@@ -109,10 +109,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/username/cloud-ai-yingcai.git"
+    "url": "https://github.com/bytebitgo/Cloud-AI-Yingcai.git"
   },
   "bugs": {
-    "url": "https://github.com/username/cloud-ai-yingcai/issues"
+    "url": "https://github.com/bytebitgo/Cloud-AI-Yingcai/issues"
   },
-  "homepage": "https://github.com/username/cloud-ai-yingcai#readme"
+  "homepage": "https://github.com/bytebitgo/Cloud-AI-Yingcai#readme",
+  "license": "MIT"
 }
