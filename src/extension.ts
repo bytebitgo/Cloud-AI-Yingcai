@@ -161,6 +161,90 @@ class SettingsManager {
         const selectedModel = settings.models.find(m => m.selected);
         return selectedModel ? selectedModel.name : settings.models[0].name;
     }
+
+    // 导出配置
+    public exportConfigurations(): string {
+        const configurations = this.getConfigurations();
+        const currentConfig = this.getCurrentConfig();
+        
+        const exportData = {
+            version: '1.0',
+            exportDate: new Date().toISOString(),
+            configurations: configurations,
+            currentConfig: currentConfig
+        };
+        
+        return JSON.stringify(exportData, null, 2);
+    }
+
+    // 导入配置
+    public async importConfigurations(jsonString: string): Promise<boolean> {
+        try {
+            const importData = JSON.parse(jsonString);
+            
+            // 验证导入数据的格式
+            if (!importData.version || !importData.configurations || typeof importData.configurations !== 'object') {
+                throw new Error('无效的配置文件格式');
+            }
+
+            // 验证每个配置
+            for (const [name, config] of Object.entries(importData.configurations)) {
+                if (!this._validateConfiguration(config)) {
+                    throw new Error(`配置 "${name}" 格式无效`);
+                }
+            }
+
+            const config = vscode.workspace.getConfiguration('cloud-ai-yingcai');
+            
+            // 保存配置
+            await config.update('configurations', importData.configurations, true);
+            
+            // 如果导入数据包含当前配置，且该配置存在，则更新当前配置
+            if (importData.currentConfig && importData.configurations[importData.currentConfig]) {
+                await config.update('currentConfig', importData.currentConfig, true);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('导入配置失败:', error);
+            throw new Error('导入配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
+        }
+    }
+
+    // 验证配置格式
+    private _validateConfiguration(config: any): boolean {
+        if (!config || typeof config !== 'object') {
+            return false;
+        }
+
+        // 检查必需字段
+        if (!config.name || typeof config.name !== 'string') {
+            return false;
+        }
+
+        if (!config.endpoint || typeof config.endpoint !== 'string') {
+            return false;
+        }
+
+        if (!config.apiKey || typeof config.apiKey !== 'string') {
+            return false;
+        }
+
+        // 检查模型列表
+        if (!Array.isArray(config.models) || config.models.length === 0) {
+            return false;
+        }
+
+        // 验证每个模型
+        for (const model of config.models) {
+            if (!model.name || typeof model.name !== 'string' || 
+                typeof model.selected !== 'boolean') {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
 
 class ChatViewProvider implements vscode.WebviewViewProvider {
@@ -317,6 +401,55 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         break;
                     case 'clearContext':
                         this._clearContext();
+                        break;
+                    case 'exportConfig':
+                        try {
+                            const configJson = this._settingsManager.exportConfigurations();
+                            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                            if (!workspaceFolder) {
+                                throw new Error('未找到工作区文件夹');
+                            }
+                            
+                            const fileName = `cloud-ai-yingcai-config-${new Date().toISOString().split('T')[0]}.json`;
+                            const filePath = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
+                            
+                            await vscode.workspace.fs.writeFile(filePath, Buffer.from(configJson, 'utf8'));
+                            vscode.window.showInformationMessage(`配置已导出到: ${fileName}`);
+                        } catch (error) {
+                            vscode.window.showErrorMessage('导出配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
+                        }
+                        break;
+                    case 'importConfig':
+                        try {
+                            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                            if (!workspaceFolder) {
+                                throw new Error('未找到工作区文件夹');
+                            }
+
+                            const fileUri = await vscode.window.showOpenDialog({
+                                canSelectFiles: true,
+                                canSelectFolders: false,
+                                canSelectMany: false,
+                                filters: {
+                                    'JSON Files': ['json']
+                                }
+                            });
+
+                            if (fileUri && fileUri[0]) {
+                                const fileContent = await vscode.workspace.fs.readFile(fileUri[0]);
+                                const jsonString = Buffer.from(fileContent).toString('utf8');
+                                
+                                await this._settingsManager.importConfigurations(jsonString);
+                                vscode.window.showInformationMessage('配置导入成功');
+                                
+                                // 刷新设置界面
+                                if (this._view) {
+                                    this._view.webview.html = this._getHtmlForWebview(this._view.webview);
+                                }
+                            }
+                        } catch (error) {
+                            vscode.window.showErrorMessage('导入配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
+                        }
                         break;
                 }
             }
@@ -553,6 +686,99 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         // 每次生成HTML时重新获取最新的配置列表
         console.log('重新生成HTML，当前配置列表:', Object.keys(configurations));
         
+        // 在设置表单后添加导出和导入按钮
+        const settingsHtml = `
+            <div class="settings-container">
+                <form id="settingsForm">
+                    <div class="form-group">
+                        <label for="name">配置名称</label>
+                        <input type="text" id="name" value="${settings.name || ''}">
+                        <div id="nameError" class="error-message">请输入有效的配置名称</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="endpoint">API 端点</label>
+                        <input type="text" id="endpoint" value="${settings.endpoint || ''}" onchange="validateEndpoint(this)">
+                        <div id="endpointError" class="error-message">请输入有效的API端点URL</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="apiKey">API 密钥</label>
+                        <input type="password" id="apiKey" value="${settings.apiKey || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>模型选择</label>
+                        <div id="modelsList">
+                            ${(settings.models || []).map(model => `
+                                <div class="model-select">
+                                    <input type="radio" 
+                                        name="model" 
+                                        value="${model.name}"
+                                        id="${model.name}"
+                                        ${model.selected ? 'checked' : ''}>
+                                    <label for="${model.name}">${model.name}</label>
+                                    <button class="icon danger" onclick="deleteModel('${model.name}')">删除</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="margin-top: 10px; display: flex; gap: 8px;">
+                            <input type="text" id="newModelName" placeholder="输入新模型名称" style="flex: 1;">
+                            <button onclick="addNewModel()">添加模型</button>
+                        </div>
+                    </div>
+                    <button onclick="saveSettings()">保存设置</button>
+                </form>
+                <div class="settings-actions">
+                    <button id="exportConfig" class="action-button">
+                        <i class="codicon codicon-export"></i> 导出配置
+                    </button>
+                    <button id="importConfig" class="action-button">
+                        <i class="codicon codicon-import"></i> 导入配置
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // 添加导出和导入按钮的样式
+        const styles = `
+            .settings-actions {
+                margin-top: 20px;
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+            }
+            .action-button {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                padding: 8px 16px;
+                background-color: var(--vscode-button-background);
+                color: var(--vscode-button-foreground);
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            }
+            .action-button:hover {
+                background-color: var(--vscode-button-hoverBackground);
+            }
+        `;
+
+        // 添加导出和导入功能的JavaScript代码
+        const script = `
+            // 导出配置
+            document.getElementById('exportConfig').addEventListener('click', () => {
+                vscode.postMessage({
+                    type: 'exportConfig'
+                });
+            });
+
+            // 导入配置
+            document.getElementById('importConfig').addEventListener('click', () => {
+                vscode.postMessage({
+                    type: 'importConfig'
+                });
+            });
+        `;
+
         return `
             <!DOCTYPE html>
             <html lang="zh">
