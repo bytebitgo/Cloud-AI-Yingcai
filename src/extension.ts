@@ -195,6 +195,32 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         });
     }
 
+    // 添加清空上下文的方法
+    private _clearContext() {
+        this._messages = [];
+        if (this._view) {
+            this._view.webview.postMessage({
+                type: 'clearMessages'
+            });
+        }
+    }
+
+    // 添加验证JSON字符串的方法
+    private _isValidJSON(str: string): boolean {
+        try {
+            // 检查基本的JSON结构
+            if (!str.startsWith('{') || !str.endsWith('}')) {
+                return false;
+            }
+            
+            // 尝试解析
+            JSON.parse(str);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
         _context: vscode.WebviewViewResolveContext,
@@ -288,6 +314,9 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                                 model: this._lastSelectedModel
                             });
                         }
+                        break;
+                    case 'clearContext':
+                        this._clearContext();
                         break;
                 }
             }
@@ -583,6 +612,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                     .input-row {
                         display: flex;
                         gap: 8px;
+                        align-items: center;
                     }
                     .select-container {
                         display: flex;
@@ -661,6 +691,19 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         display: flex;
                         align-items: center;
                     }
+                    .clear-button {
+                        padding: 6px 10px;
+                        border: none;
+                        border-radius: 4px;
+                        background: var(--vscode-button-secondaryBackground);
+                        color: var(--vscode-button-secondaryForeground);
+                        cursor: pointer;
+                        font-size: 16px;
+                        line-height: 1;
+                    }
+                    .clear-button:hover {
+                        background: var(--vscode-button-secondaryHoverBackground);
+                    }
                 </style>
             </head>
             <body>
@@ -686,6 +729,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                             </div>
                         </div>
                         <div class="input-row">
+                            <button class="clear-button" onclick="clearContext()" title="开始新对话">+</button>
                             <input type="text" id="messageInput" placeholder="输入消息...">
                             <button onclick="sendMessage()" id="sendButton">发送</button>
                         </div>
@@ -719,6 +763,8 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                             removeTemporaryMessages();
                         } else if (message.type === 'updateMessage') {
                             updateMessage(message.message);
+                        } else if (message.type === 'clearMessages') {
+                            document.getElementById('messages').innerHTML = '';
                         } else if (message.type === 'syncState') {
                             // 同步状态
                             if (message.config && allConfigurations[message.config]) {
@@ -915,20 +961,13 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         }
                     }
 
-                    // 添加新的辅助方法来验证JSON字符串的完整性
-                    function _isValidJSON(str: string): boolean {
-                        try {
-                            // 检查基本的JSON结构
-                            if (!str.startsWith('{') || !str.endsWith('}')) {
-                                return false;
-                            }
-                            
-                            // 尝试解析
-                            JSON.parse(str);
-                            return true;
-                        } catch {
-                            return false;
-                        }
+                    function clearContext() {
+                        // 清空消息显示
+                        document.getElementById('messages').innerHTML = '';
+                        // 通知扩展清空上下文
+                        vscode.postMessage({
+                            command: 'clearContext'
+                        });
                     }
                 </script>
             </body>
