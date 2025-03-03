@@ -692,22 +692,22 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                 <form id="settingsForm">
                     <div class="form-group">
                         <label for="name">配置名称</label>
-                        <input type="text" id="name" value="${settings.name || ''}">
+                        <input type="text" id="name" value="${currentSettings.name || ''}">
                         <div id="nameError" class="error-message">请输入有效的配置名称</div>
                     </div>
                     <div class="form-group">
                         <label for="endpoint">API 端点</label>
-                        <input type="text" id="endpoint" value="${settings.endpoint || ''}" onchange="validateEndpoint(this)">
+                        <input type="text" id="endpoint" value="${currentSettings.endpoint || ''}" onchange="validateEndpoint(this)">
                         <div id="endpointError" class="error-message">请输入有效的API端点URL</div>
                     </div>
                     <div class="form-group">
                         <label for="apiKey">API 密钥</label>
-                        <input type="password" id="apiKey" value="${settings.apiKey || ''}">
+                        <input type="password" id="apiKey" value="${currentSettings.apiKey || ''}">
                     </div>
                     <div class="form-group">
                         <label>模型选择</label>
                         <div id="modelsList">
-                            ${(settings.models || []).map(model => `
+                            ${(currentSettings.models || []).map((model: {name: string; selected: boolean}) => `
                                 <div class="model-select">
                                     <input type="radio" 
                                         name="model" 
@@ -1260,10 +1260,110 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
     }
 
     private _getSettingsHtml(webview: vscode.Webview): string {
-        const settings = this._settingsManager.getSettings();
         const configurations = this._settingsManager.getConfigurations();
         const currentConfig = this._settingsManager.getCurrentConfig();
         
+        // 获取当前配置的设置
+        let currentSettings: Configuration;
+        if (currentConfig && configurations[currentConfig]) {
+            currentSettings = configurations[currentConfig];
+        } else {
+            currentSettings = this._settingsManager.getSettings();
+        }
+        
+        // 在设置表单后添加导出和导入按钮
+        const settingsHtml = `
+            <div class="settings-container">
+                <form id="settingsForm">
+                    <div class="form-group">
+                        <label for="name">配置名称</label>
+                        <input type="text" id="name" value="${currentSettings.name || ''}">
+                        <div id="nameError" class="error-message">请输入有效的配置名称</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="endpoint">API 端点</label>
+                        <input type="text" id="endpoint" value="${currentSettings.endpoint || ''}" onchange="validateEndpoint(this)">
+                        <div id="endpointError" class="error-message">请输入有效的API端点URL</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="apiKey">API 密钥</label>
+                        <input type="password" id="apiKey" value="${currentSettings.apiKey || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>模型选择</label>
+                        <div id="modelsList">
+                            ${(currentSettings.models || []).map((model: {name: string; selected: boolean}) => `
+                                <div class="model-select">
+                                    <input type="radio" 
+                                        name="model" 
+                                        value="${model.name}"
+                                        id="${model.name}"
+                                        ${model.selected ? 'checked' : ''}>
+                                    <label for="${model.name}">${model.name}</label>
+                                    <button class="icon danger" onclick="deleteModel('${model.name}')">删除</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="margin-top: 10px; display: flex; gap: 8px;">
+                            <input type="text" id="newModelName" placeholder="输入新模型名称" style="flex: 1;">
+                            <button onclick="addNewModel()">添加模型</button>
+                        </div>
+                    </div>
+                    <button onclick="saveSettings()">保存设置</button>
+                </form>
+                <div class="settings-actions">
+                    <button id="exportConfig" class="action-button">
+                        <i class="codicon codicon-export"></i> 导出配置
+                    </button>
+                    <button id="importConfig" class="action-button">
+                        <i class="codicon codicon-import"></i> 导入配置
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // 添加导出和导入按钮的样式
+        const styles = `
+            .settings-actions {
+                margin-top: 20px;
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+            }
+            .action-button {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                padding: 8px 16px;
+                background-color: var(--vscode-button-background);
+                color: var(--vscode-button-foreground);
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            }
+            .action-button:hover {
+                background-color: var(--vscode-button-hoverBackground);
+            }
+        `;
+
+        // 添加导出和导入功能的JavaScript代码
+        const script = `
+            // 导出配置
+            document.getElementById('exportConfig').addEventListener('click', () => {
+                vscode.postMessage({
+                    type: 'exportConfig'
+                });
+            });
+
+            // 导入配置
+            document.getElementById('importConfig').addEventListener('click', () => {
+                vscode.postMessage({
+                    type: 'importConfig'
+                });
+            });
+        `;
+
         return `
             <!DOCTYPE html>
             <html lang="zh">
@@ -1424,22 +1524,22 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                 <div class="card">
                     <div class="form-group">
                         <label for="name">配置名称</label>
-                        <input type="text" id="name" value="${settings.name || ''}">
+                        <input type="text" id="name" value="${currentSettings.name || ''}">
                         <div id="nameError" class="error-message">请输入有效的配置名称</div>
                     </div>
                     <div class="form-group">
                         <label for="endpoint">API 端点</label>
-                        <input type="text" id="endpoint" value="${settings.endpoint || ''}" onchange="validateEndpoint(this)">
+                        <input type="text" id="endpoint" value="${currentSettings.endpoint || ''}" onchange="validateEndpoint(this)">
                         <div id="endpointError" class="error-message">请输入有效的API端点URL</div>
                     </div>
                     <div class="form-group">
                         <label for="apiKey">API 密钥</label>
-                        <input type="password" id="apiKey" value="${settings.apiKey || ''}">
+                        <input type="password" id="apiKey" value="${currentSettings.apiKey || ''}">
                     </div>
                     <div class="form-group">
                         <label>模型选择</label>
                         <div id="modelsList">
-                            ${(settings.models || []).map(model => `
+                            ${(currentSettings.models || []).map((model: {name: string; selected: boolean}) => `
                                 <div class="model-select">
                                     <input type="radio" 
                                         name="model" 
