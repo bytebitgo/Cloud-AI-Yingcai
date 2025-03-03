@@ -88,7 +88,7 @@ class SettingsManager {
         }
 
         // 验证端点URL
-        const endpointValidation = this.validateEndpoint(settings.name);
+        const endpointValidation = this.validateEndpoint(settings.endpoint);
         if (!endpointValidation.isValid) {
             throw new Error(`API端点无效: ${endpointValidation.error}`);
         }
