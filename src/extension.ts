@@ -44,7 +44,65 @@ class SettingsManager {
         };
     }
 
+    // 验证端点URL
+    private validateEndpoint(endpoint: string): { isValid: boolean; error?: string } {
+        if (!endpoint) {
+            return { isValid: false, error: '请输入API端点URL' };
+        }
+
+        try {
+            const url = new URL(endpoint);
+            
+            // 检查协议
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+                return { isValid: false, error: '仅支持http和https协议' };
+            }
+
+            // 检查危险字符
+            const dangerousChars = /[<>'"\\%\`]/g;
+            if (dangerousChars.test(endpoint)) {
+                return { isValid: false, error: 'URL包含非法字符' };
+            }
+
+            // 检查URL长度
+            if (endpoint.length > 2048) {
+                return { isValid: false, error: 'URL长度超过限制' };
+            }
+
+            // 检查域名格式
+            const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/;
+            if (!domainRegex.test(url.hostname)) {
+                return { isValid: false, error: '无效的域名格式' };
+            }
+
+            return { isValid: true };
+        } catch (e) {
+            return { isValid: false, error: '无效的URL格式' };
+        }
+    }
+
     public async saveSettings(settings: Configuration) {
+        // 验证配置名称
+        if (!settings.name || settings.name.trim().length === 0) {
+            throw new Error('配置名称不能为空');
+        }
+
+        // 验证端点URL
+        const endpointValidation = this.validateEndpoint(settings.name);
+        if (!endpointValidation.isValid) {
+            throw new Error(`API端点无效: ${endpointValidation.error}`);
+        }
+
+        // 验证API密钥
+        if (!settings.apiKey || settings.apiKey.trim().length === 0) {
+            throw new Error('API密钥不能为空');
+        }
+
+        // 验证模型列表
+        if (!settings.models || settings.models.length === 0) {
+            throw new Error('至少需要一个模型');
+        }
+
         const config = vscode.workspace.getConfiguration('cloud-ai-yingcai');
         const configurations = this.getConfigurations();
         
@@ -1025,6 +1083,15 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                     .dropdown-item-name {
                         flex: 1;
                     }
+                    .error-message {
+                        color: var(--vscode-errorForeground);
+                        font-size: 12px;
+                        margin-top: 4px;
+                        display: none;
+                    }
+                    .input-error {
+                        border-color: var(--vscode-errorForeground) !important;
+                    }
                 </style>
             </head>
             <body>
@@ -1058,10 +1125,12 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                     <div class="form-group">
                         <label for="name">配置名称</label>
                         <input type="text" id="name" value="${settings.name || ''}">
+                        <div id="nameError" class="error-message">请输入有效的配置名称</div>
                     </div>
                     <div class="form-group">
                         <label for="endpoint">API 端点</label>
-                        <input type="text" id="endpoint" value="${settings.endpoint || ''}">
+                        <input type="text" id="endpoint" value="${settings.endpoint || ''}" onchange="validateEndpoint(this)">
+                        <div id="endpointError" class="error-message">请输入有效的API端点URL</div>
                     </div>
                     <div class="form-group">
                         <label for="apiKey">API 密钥</label>
@@ -1130,24 +1199,98 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                         }
                     }
 
+                    // 验证URL格式
+                    function isValidUrl(url) {
+                        try {
+                            const urlObj = new URL(url);
+                            return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+                        } catch (e) {
+                            return false;
+                        }
+                    }
+
+                    // 验证端点URL
+                    function validateEndpoint(input) {
+                        const endpoint = input.value.trim();
+                        const errorElement = document.getElementById('endpointError');
+                        
+                        if (!endpoint) {
+                            errorElement.textContent = '请输入API端点URL';
+                            errorElement.style.display = 'block';
+                            input.classList.add('input-error');
+                            return false;
+                        }
+                        
+                        if (!isValidUrl(endpoint)) {
+                            errorElement.textContent = '请输入有效的http或https URL';
+                            errorElement.style.display = 'block';
+                            input.classList.add('input-error');
+                            return false;
+                        }
+                        
+                        // 检查是否包含潜在危险字符
+                        const dangerousChars = /[<>'"\\%\`]/g;
+                        if (dangerousChars.test(endpoint)) {
+                            errorElement.textContent = 'URL包含非法字符';
+                            errorElement.style.display = 'block';
+                            input.classList.add('input-error');
+                            return false;
+                        }
+                        
+                        // 验证通过
+                        errorElement.style.display = 'none';
+                        input.classList.remove('input-error');
+                        return true;
+                    }
+
+                    // 保存设置前验证所有输入
+                    function validateForm() {
+                        const name = document.getElementById('name').value.trim();
+                        const endpoint = document.getElementById('endpoint').value.trim();
+                        const apiKey = document.getElementById('apiKey').value.trim();
+                        
+                        let isValid = true;
+                        
+                        // 验证配置名称
+                        if (!name) {
+                            const nameError = document.getElementById('nameError');
+                            nameError.style.display = 'block';
+                            document.getElementById('name').classList.add('input-error');
+                            isValid = false;
+                        }
+                        
+                        // 验证端点URL
+                        if (!validateEndpoint(document.getElementById('endpoint'))) {
+                            isValid = false;
+                        }
+                        
+                        // 验证API密钥
+                        if (!apiKey) {
+                            vscode.postMessage({
+                                command: 'showError',
+                                text: '请输入API密钥'
+                            });
+                            isValid = false;
+                        }
+                        
+                        return isValid;
+                    }
+
                     function saveSettings() {
+                        // 首先验证所有输入
+                        if (!validateForm()) {
+                            return;
+                        }
+
                         const settings = {
-                            name: document.getElementById('name').value,
-                            endpoint: document.getElementById('endpoint').value,
-                            apiKey: document.getElementById('apiKey').value,
+                            name: document.getElementById('name').value.trim(),
+                            endpoint: document.getElementById('endpoint').value.trim(),
+                            apiKey: document.getElementById('apiKey').value.trim(),
                             models: Array.from(document.getElementsByName('model')).map(radio => ({
                                 name: radio.value,
                                 selected: radio.checked
                             }))
                         };
-                        
-                        if (!settings.name) {
-                            vscode.postMessage({
-                                command: 'showError',
-                                text: '请填写配置名称'
-                            });
-                            return;
-                        }
                         
                         if (settings.models.length === 0) {
                             vscode.postMessage({
