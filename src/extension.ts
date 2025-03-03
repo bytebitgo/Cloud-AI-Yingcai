@@ -405,7 +405,22 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                     if (line.trim() === 'data: [DONE]') continue;
                     
                     try {
-                        const data = JSON.parse(line.replace('data: ', ''));
+                        // 确保行以 "data: " 开头
+                        if (!line.trim().startsWith('data: ')) {
+                            console.warn('跳过无效的数据行:', line);
+                            continue;
+                        }
+
+                        // 提取JSON部分
+                        const jsonStr = line.replace('data: ', '').trim();
+                        
+                        // 验证JSON字符串的完整性
+                        if (!this._isValidJSON(jsonStr)) {
+                            console.warn('检测到不完整的JSON:', jsonStr);
+                            continue;
+                        }
+
+                        const data = JSON.parse(jsonStr);
                         if (data.choices && data.choices[0]?.delta?.content) {
                             aiMessage.content += data.choices[0].delta.content;
                             this._view.webview.postMessage({
@@ -415,6 +430,10 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         }
                     } catch (error) {
                         console.error('解析响应数据失败:', error);
+                        if (error instanceof Error) {
+                            console.error('错误详情:', error.message);
+                            console.error('问题数据:', line);
+                        }
                     }
                 }
             });
@@ -893,6 +912,22 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                             }, 1500);
                         } catch (err) {
                             console.error('复制失败:', err);
+                        }
+                    }
+
+                    // 添加新的辅助方法来验证JSON字符串的完整性
+                    function _isValidJSON(str: string): boolean {
+                        try {
+                            // 检查基本的JSON结构
+                            if (!str.startsWith('{') || !str.endsWith('}')) {
+                                return false;
+                            }
+                            
+                            // 尝试解析
+                            JSON.parse(str);
+                            return true;
+                        } catch {
+                            return false;
                         }
                     }
                 </script>
