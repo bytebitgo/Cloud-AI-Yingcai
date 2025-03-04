@@ -1224,39 +1224,64 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.html = this._getSettingsHtml(webviewView.webview);
 
-        webviewView.webview.onDidReceiveMessage(
-            async (message: any) => {
-                switch (message.command) {
-                    case 'saveSettings':
-                        try {
-                            await this._settingsManager.saveSettings(message.settings);
-                            if (this._view) {
-                                this._view.webview.html = this._getSettingsHtml(this._view.webview);
-                                vscode.window.showInformationMessage('设置已保存');
-                            }
-                        } catch (error) {
-                            vscode.window.showErrorMessage(error instanceof Error ? error.message : '保存设置失败');
+        // 处理来自WebView的消息
+        webviewView.webview.onDidReceiveMessage(async (message) => {
+            switch (message.type) {
+                case 'exportConfig':
+                    try {
+                        const exportData = this._settingsManager.exportConfigurations();
+                        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                        if (!workspaceFolder) {
+                            throw new Error('没有打开的工作区');
                         }
-                        break;
-                    case 'deleteConfig':
-                        // 直接删除配置，不需要确认
-                        try {
-                            await this._settingsManager.deleteConfig(message.name);
-                            if (this._view) {
-                                this._view.webview.html = this._getSettingsHtml(this._view.webview);
-                                vscode.window.showInformationMessage(`配置 "${message.name}" 已删除`);
+                        const fileName = `cloud-ai-yingcai-config-${new Date().toISOString().split('T')[0]}.json`;
+                        const filePath = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
+                        await vscode.workspace.fs.writeFile(filePath, Buffer.from(exportData, 'utf8'));
+                        vscode.window.showInformationMessage(`配置已导出到: ${fileName}`);
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`导出配置失败: ${error.message}`);
+                    }
+                    break;
+                case 'importConfig':
+                    try {
+                        const result = await vscode.window.showOpenDialog({
+                            canSelectFiles: true,
+                            canSelectFolders: false,
+                            canSelectMany: false,
+                            filters: {
+                                'JSON Files': ['json']
                             }
-                        } catch (error) {
-                            vscode.window.showErrorMessage(error instanceof Error ? error.message : '删除配置失败');
+                        });
+                        
+                        if (result && result[0]) {
+                            const fileContent = await vscode.workspace.fs.readFile(result[0]);
+                            const jsonString = fileContent.toString();
+                            const success = await this._settingsManager.importConfigurations(jsonString);
+                            if (success) {
+                                vscode.window.showInformationMessage('配置导入成功');
+                                // 刷新WebView
+                                webviewView.webview.html = this._getSettingsHtml(webviewView.webview);
+                            } else {
+                                vscode.window.showErrorMessage('配置导入失败：格式不正确');
+                            }
                         }
-                        break;
-                    case 'showError':
-                        // 显示错误消息
-                        vscode.window.showErrorMessage(message.text);
-                        break;
-                }
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`导入配置失败: ${error.message}`);
+                    }
+                    break;
             }
-        );
+            switch (message.command) {
+                case 'saveSettings':
+                    await this._settingsManager.saveSettings(message.settings);
+                    break;
+                case 'deleteConfig':
+                    await this._settingsManager.deleteConfig(message.name);
+                    break;
+                case 'showError':
+                    vscode.window.showErrorMessage(message.text);
+                    break;
+            }
+        });
     }
 
     private _getSettingsHtml(webview: vscode.Webview): string {
