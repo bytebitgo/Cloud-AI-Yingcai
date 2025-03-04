@@ -405,16 +405,22 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                     case 'exportConfig':
                         try {
                             const configJson = this._settingsManager.exportConfigurations();
-                            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-                            if (!workspaceFolder) {
-                                throw new Error('未找到工作区文件夹');
+                            
+                            // 使用showSaveDialog让用户选择保存路径和文件名
+                            const defaultFileName = `cloud-ai-yingcai-config-${new Date().toISOString().split('T')[0]}.json`;
+                            const fileUri = await vscode.window.showSaveDialog({
+                                defaultUri: vscode.Uri.file(defaultFileName),
+                                filters: {
+                                    'JSON Files': ['json']
+                                },
+                                saveLabel: '导出配置',
+                                title: '选择配置文件保存位置'
+                            });
+                            
+                            if (fileUri) {
+                                await vscode.workspace.fs.writeFile(fileUri, Buffer.from(configJson, 'utf8'));
+                                vscode.window.showInformationMessage(`配置已导出到: ${fileUri.fsPath}`);
                             }
-                            
-                            const fileName = `cloud-ai-yingcai-config-${new Date().toISOString().split('T')[0]}.json`;
-                            const filePath = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
-                            
-                            await vscode.workspace.fs.writeFile(filePath, Buffer.from(configJson, 'utf8'));
-                            vscode.window.showInformationMessage(`配置已导出到: ${fileName}`);
                         } catch (error) {
                             const errorMessage = error instanceof Error ? error.message : '导出配置失败';
                             vscode.window.showErrorMessage(`导出配置失败: ${errorMessage}`);
@@ -422,18 +428,16 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         break;
                     case 'importConfig':
                         try {
-                            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-                            if (!workspaceFolder) {
-                                throw new Error('未找到工作区文件夹');
-                            }
-
+                            // 使用showOpenDialog让用户选择要导入的配置文件
                             const fileUri = await vscode.window.showOpenDialog({
                                 canSelectFiles: true,
                                 canSelectFolders: false,
                                 canSelectMany: false,
                                 filters: {
                                     'JSON Files': ['json']
-                                }
+                                },
+                                openLabel: '导入配置',
+                                title: '选择要导入的配置文件'
                             });
 
                             if (fileUri && fileUri[0]) {
@@ -441,7 +445,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                                 const jsonString = Buffer.from(fileContent).toString('utf8');
                                 
                                 await this._settingsManager.importConfigurations(jsonString);
-                                vscode.window.showInformationMessage('配置导入成功');
+                                vscode.window.showInformationMessage(`配置从 ${fileUri[0].fsPath} 导入成功`);
                                 
                                 // 刷新设置界面
                                 if (this._view) {
@@ -1232,14 +1236,22 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                 case 'exportConfig':
                     try {
                         const exportData = this._settingsManager.exportConfigurations();
-                        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-                        if (!workspaceFolder) {
-                            throw new Error('没有打开的工作区');
+                        
+                        // 使用showSaveDialog让用户选择保存路径和文件名
+                        const defaultFileName = `cloud-ai-yingcai-config-${new Date().toISOString().split('T')[0]}.json`;
+                        const fileUri = await vscode.window.showSaveDialog({
+                            defaultUri: vscode.Uri.file(defaultFileName),
+                            filters: {
+                                'JSON Files': ['json']
+                            },
+                            saveLabel: '导出配置',
+                            title: '选择配置文件保存位置'
+                        });
+                        
+                        if (fileUri) {
+                            await vscode.workspace.fs.writeFile(fileUri, Buffer.from(exportData, 'utf8'));
+                            vscode.window.showInformationMessage(`配置已导出到: ${fileUri.fsPath}`);
                         }
-                        const fileName = `cloud-ai-yingcai-config-${new Date().toISOString().split('T')[0]}.json`;
-                        const filePath = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
-                        await vscode.workspace.fs.writeFile(filePath, Buffer.from(exportData, 'utf8'));
-                        vscode.window.showInformationMessage(`配置已导出到: ${fileName}`);
                     } catch (error) {
                         const errorMessage = error instanceof Error ? error.message : '导出配置失败';
                         vscode.window.showErrorMessage(`导出配置失败: ${errorMessage}`);
@@ -1247,25 +1259,28 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'importConfig':
                     try {
-                        const result = await vscode.window.showOpenDialog({
+                        // 使用showOpenDialog让用户选择要导入的配置文件
+                        const fileUri = await vscode.window.showOpenDialog({
                             canSelectFiles: true,
                             canSelectFolders: false,
                             canSelectMany: false,
                             filters: {
                                 'JSON Files': ['json']
-                            }
+                            },
+                            openLabel: '导入配置',
+                            title: '选择要导入的配置文件'
                         });
-                        
-                        if (result && result[0]) {
-                            const fileContent = await vscode.workspace.fs.readFile(result[0]);
-                            const jsonString = fileContent.toString();
-                            const success = await this._settingsManager.importConfigurations(jsonString);
-                            if (success) {
-                                vscode.window.showInformationMessage('配置导入成功');
-                                // 刷新WebView
-                                webviewView.webview.html = this._getSettingsHtml(webviewView.webview);
-                            } else {
-                                vscode.window.showErrorMessage('配置导入失败：格式不正确');
+
+                        if (fileUri && fileUri[0]) {
+                            const fileContent = await vscode.workspace.fs.readFile(fileUri[0]);
+                            const jsonString = Buffer.from(fileContent).toString('utf8');
+                            
+                            await this._settingsManager.importConfigurations(jsonString);
+                            vscode.window.showInformationMessage(`配置从 ${fileUri[0].fsPath} 导入成功`);
+                            
+                            // 刷新设置界面
+                            if (this._view) {
+                                this._view.webview.html = this._getSettingsHtml(webviewView.webview);
                             }
                         }
                     } catch (error) {
