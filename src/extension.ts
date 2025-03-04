@@ -416,7 +416,8 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                             await vscode.workspace.fs.writeFile(filePath, Buffer.from(configJson, 'utf8'));
                             vscode.window.showInformationMessage(`配置已导出到: ${fileName}`);
                         } catch (error) {
-                            vscode.window.showErrorMessage('导出配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
+                            const errorMessage = error instanceof Error ? error.message : '导出配置失败';
+                            vscode.window.showErrorMessage(`导出配置失败: ${errorMessage}`);
                         }
                         break;
                     case 'importConfig':
@@ -448,7 +449,8 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                                 }
                             }
                         } catch (error) {
-                            vscode.window.showErrorMessage('导入配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
+                            const errorMessage = error instanceof Error ? error.message : '导入配置失败';
+                            vscode.window.showErrorMessage(`导入配置失败: ${errorMessage}`);
                         }
                         break;
                 }
@@ -1239,7 +1241,8 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                         await vscode.workspace.fs.writeFile(filePath, Buffer.from(exportData, 'utf8'));
                         vscode.window.showInformationMessage(`配置已导出到: ${fileName}`);
                     } catch (error) {
-                        vscode.window.showErrorMessage(`导出配置失败: ${error.message}`);
+                        const errorMessage = error instanceof Error ? error.message : '导出配置失败';
+                        vscode.window.showErrorMessage(`导出配置失败: ${errorMessage}`);
                     }
                     break;
                 case 'importConfig':
@@ -1266,7 +1269,8 @@ class SettingsViewProvider implements vscode.WebviewViewProvider {
                             }
                         }
                     } catch (error) {
-                        vscode.window.showErrorMessage(`导入配置失败: ${error.message}`);
+                        const errorMessage = error instanceof Error ? error.message : '导入配置失败';
+                        vscode.window.showErrorMessage(`导入配置失败: ${errorMessage}`);
                     }
                     break;
             }
